@@ -1,4 +1,43 @@
-# Getting Started with Create React App
+src/
+├── components/              // 共通パーツ
+│   ├── ui/
+│   │   └── Loading.tsx      // ロード中のグルグル
+│   └── Layout.tsx           // ヘッダーやナビバーを含む枠組み
+│
+├── features/                // 機能ごとの実装（ここがメイン！）
+│   ├── auth/                // ★認証機能
+│   │   ├── api/
+│   │   │   └── auth.ts      // バックエンドへの認証系API
+│   │   ├── components/
+│   │   │   └── LoginForm.tsx // Googleログインボタンなど
+│   │   └── hooks/
+│   │   │   └── useAuth.ts   // ログイン状態を管理するロジック
+│   │
+│   └── items/               // ★商品機能（Gemini連携含む）
+│       ├── api/
+│       │   └── items.ts     // バックエンド(/items)との通信
+│       └── components/
+│           ├── ItemCard.tsx       // 一覧に表示する商品カード
+│           ├── ItemList.tsx       // カードを並べるグリッド
+│           └── ItemCreateForm.tsx // ★最重要: 出品・画像アップロードフォーム
+│
+├── lib/                     // 外部ツールの設定
+│   ├── axios.ts             // APIクライアント（GoサーバーのURL設定など）
+│   └── firebase.ts          // Firebaseの初期化設定
+│
+├── pages/                   // 各ページ（画面）のまとめ役
+│   ├── HomePage.tsx         // トップページ（商品一覧）
+│   ├── LoginPage.tsx        // ログインページ
+│   ├── ItemCreatePage.tsx   // 出品ページ
+│   └── ItemDetailPage.tsx   // 商品詳細ページ
+│
+├── types/                   // TypeScriptの型定義
+│   ├── index.ts             // 共通の型
+│   ├── item.ts              // 商品データの型 (Title, Price...)
+│   └── user.ts              // ユーザーデータの型
+│
+├── App.tsx                  // ルーティング設定（URLとPagesの紐付け）
+└── main.tsx     # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
