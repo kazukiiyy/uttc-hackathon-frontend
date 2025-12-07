@@ -6,7 +6,7 @@ export const ItemCreatePage = () => {
   return (
     <div className="page-container">
       {/* ヘッダー部分 */}
-      <header style={{ padding: '16px', borderBottom: '1px solid #eee', fontWeight: 'bold', textAlign: 'center' }}>
+      <header style={{ padding: '16px', borderBottom: '1px solid #eee', fontWeight: 'bold', textAlign: 'center' ,borderRadius: '12px' }}>
         商品の情報を入力
       </header>
 
