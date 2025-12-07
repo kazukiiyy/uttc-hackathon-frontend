@@ -1,7 +1,11 @@
-import { ItemData } from '../../../types/item'
+type itemData = {
+  title: string;
+  price: string;
+  explanation: string;
+  image: File | null; // 画像ファイルそのもの
+};
 
-// バックエンドにデータを送る関数
-export const createItem = async (data: ItemData) => {
+export const createItem = async (data: itemData) => {
   // 1. 画像を送るためには "FormData" という特殊な入れ物が必要
   const formData = new FormData();
 
