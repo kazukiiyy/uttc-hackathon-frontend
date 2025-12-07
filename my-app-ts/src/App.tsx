@@ -1,12 +1,21 @@
+// App.tsx
 import React from 'react';
-import { ItemCreateForm } from './features/items/components/ItemCreateForm';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Layout } from './components/layout/Layout';
+import { ItemCreatePage } from './pages/ItemCreatePages'; // さっきのフォームのページ
 
-function App() {
+const App = () => {
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f0f2f5', overflow: 'hidden' }}>
-      <ItemCreateForm />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        {/* Layoutで囲むことで、配下のページ全てにタブバーがつきます */}
+        <Route path="/" element={<Layout />}>
+         
+          <Route path="sell" element={<ItemCreatePage />} /> {/* ここで出品画面へ！ */}
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
-}
+};
 
 export default App;
