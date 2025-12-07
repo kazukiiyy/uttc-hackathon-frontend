@@ -21,7 +21,7 @@ export const createItem = async (data: itemData) => {
 
   // 3. fetchでバックエンドに送信
   // ※URLは自分のバックエンドのエンドポイントに合わせて書き換えてください
-  const response = await fetch('http://localhost:8000/items', {
+  const response = await fetch('https://hackathon-backend-982651832089.europe-west1.run.app/items', {
     method: 'POST',
     // FormDataを送る場合、Content-Typeヘッダーは自動設定されるので書かないのが正解！
     body: formData,
