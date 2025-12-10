@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './ItemCreateForm.css'; // ★先ほどのCSSを読み込み
-import { createItem } from '../api/ItemCreateApi'
+import { createItem } from '../../../api/ItemCreateApi'
 
 export const ItemCreateForm = () => {
   const [title, setTitle] = useState('');
