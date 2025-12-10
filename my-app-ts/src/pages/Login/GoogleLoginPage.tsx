@@ -14,10 +14,19 @@ export const GoogleLoginPage: React.FC = () => {
 
     // ログイン用のポップアップを表示
     signInWithPopup(fireAuth, provider)
-      .then(res => {
+      .then(async (res )=> {
         const user = res.user;
-        alert("ログインユーザー: " + user.displayName);
-        navigate('/');
+
+        const isRegisterd = await checkUserExistenceAndProfile(user.uid);
+
+        if (isRegisterd) {
+          alert("ログインユーザー: " + user.displayName)
+          navigate('/')
+        } else {
+          alert("新規登録が必要です。プロフィールを入力してください。");
+          navigate('/register');
+        }
+       
       })
       .catch(err => {
         const errorMessage = err.message;
