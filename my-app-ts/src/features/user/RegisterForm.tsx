@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import './RegisterForm'; 
+import './RegisterForm.css'; 
 
 export interface RegisterFormData {
     sex: 'male' | 'female' | 'other' | 'unspecified';
