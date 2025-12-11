@@ -1,5 +1,5 @@
 // ./api.ts (例：Firestoreを利用する場合のイメージ)
-import { firestore } from "../firebase";
+import { firestore } from "../../firebase";
 import { doc, getDoc } from "firebase/firestore";
 
 /**

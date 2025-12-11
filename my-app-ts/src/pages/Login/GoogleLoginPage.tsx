@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom' ;
 import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
 import { fireAuth } from "../../firebase";
 import './GoogleLoginPage.css';
+import  { checkUserExistenceAndProfile } from './checkUserExistenceAndProfile'
 
 export const GoogleLoginPage: React.FC = () => {
   /**

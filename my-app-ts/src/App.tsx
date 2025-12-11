@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route ,Navigate} from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { ItemCreatePage } from './pages/ItemCreatePages'; // さっきのフォームのページ
 import { GoogleLoginPage } from './pages/Login/GoogleLoginPage';
-import { ProtectedRoute } from "./pages/Login/ProtectedRouter"
+import { ProtectedRoute } from "./pages/Login/ProtectedRouter";
+import RegisterPage  from './pages/RegisterPage'
+
 
 const App = () => {
   
@@ -11,6 +13,7 @@ const App = () => {
       <Routes>
         {/* Layoutで囲むことで、配下のページ全てにタブバーがつきます */}
         <Route path="/login" element={<GoogleLoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
         <Route path="/" element={
           <ProtectedRoute>

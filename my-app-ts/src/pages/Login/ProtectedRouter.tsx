@@ -3,7 +3,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useEffect , useState } from "react";
 import { fireAuth } from "../../firebase";
 import React from "react";
-import "../../css/Loading.css"
+import "../../components/ui/Loading.css"
 
 type Props = {
     children: React.ReactNode;
