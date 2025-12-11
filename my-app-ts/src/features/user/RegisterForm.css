@@ -1,0 +1,192 @@
+/* =========================================================================
+   基本設定とコンテナ
+========================================================================= */
+
+.profile-form-wrapper {
+  max-width: 500px; /* フォームの最大幅を制限して、中央に配置しやすくする */
+  margin: 3rem auto; /* 上下に余白を取り、中央に配置 */
+  padding: 2rem;
+  background-color: #ffffff; /* 白い背景 */
+  border-radius: 12px; /* 角を丸くする */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); /* 奥行きのある柔らかな影 */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* フォーム要素間の間隔 */
+}
+
+.form-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #333333;
+  margin-bottom: 1rem;
+  border-bottom: 3px solid #6c63ff; /* メインカラーでアクセントライン */
+  padding-bottom: 0.5rem;
+}
+
+/* =========================================================================
+   フォームグループとラベル
+========================================================================= */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #555555;
+  margin-bottom: 0.5rem;
+}
+
+/* メールアドレス（disabled）のアイコンを追加 */
+.form-group:nth-child(1) label::before {
+  content: '📧 ';
+}
+
+/* ニックネームのアイコンを追加 */
+.form-group:nth-child(2) label::before {
+  content: '👤 ';
+}
+
+/* 性別のアイコンを追加 */
+.form-group:nth-child(3) label::before {
+  content: '🚻 ';
+}
+
+/* =========================================================================
+   入力フィールド（Input/Select）
+========================================================================= */
+
+input[type="text"],
+input[type="email"],
+input[type="number"],
+select {
+  padding: 0.75rem 1rem;
+  border: 1px solid #dddddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #333333;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  background-color: #f9f9f9; /* ややオフホワイトの背景 */
+}
+
+input:focus,
+select:focus {
+  border-color: #6c63ff; /* フォーカス時にメインカラーに変化 */
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2); /* フォーカスリング */
+  outline: none;
+  background-color: #ffffff;
+}
+
+.disabled-input {
+  background-color: #eeeeee; /* 無効化された入力欄の背景 */
+  color: #777777;
+  cursor: not-allowed;
+}
+
+/* =========================================================================
+   ハーフ幅の入力フィールド（生年と誕生日）
+========================================================================= */
+
+/* フォームグループを横並びにするためのコンテナはJSX側にないので、
+   フォームグループ自体に設定して、メディアクエリで調整します。*/
+@media (min-width: 400px) {
+  .form-group.half-width {
+    width: calc(50% - 0.75rem); /* 半分の幅 - ギャップの半分 */
+    margin-right: 1.5rem; /* ギャップの分 */
+  }
+
+  .form-group:nth-child(7) { /* 誕生日のグループ（前から7番目）の余白をリセット */
+    margin-right: 0;
+  }
+
+  /* 生年と誕生日を並べるためのラッパー（この例では擬似的にフォーム全体で処理） */
+  .register-form {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  
+  /* 生年と誕生日が横並びになるように調整 */
+  .register-form > .form-group:nth-child(4),
+  .register-form > .form-group:nth-child(5) {
+    grid-column: span 1;
+  }
+
+  /* 4番目と5番目の要素を横並びにするグリッドテンプレート */
+  .register-form {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .register-form > .form-group:nth-child(1),
+  .register-form > .form-group:nth-child(2),
+  .register-form > .form-group:nth-child(3),
+  .register-form > .error-message,
+  .register-form > .submit-button {
+    grid-column: 1 / -1; /* 全幅を使用 */
+  }
+  
+  .register-form > .form-group:nth-child(4) {
+    padding-right: 0.75rem; /* 間のスペース */
+  }
+  .register-form > .form-group:nth-child(5) {
+    padding-left: 0.75rem; /* 間のスペース */
+  }
+}
+
+/* =========================================================================
+   エラーメッセージ
+========================================================================= */
+
+.error-message {
+  color: #ff4d4f; /* 警告色の赤 */
+  background-color: #fff1f0; /* 薄い背景色 */
+  border: 1px solid #ffa39e;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* =========================================================================
+   送信ボタン
+========================================================================= */
+
+.submit-button {
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  background-color: #6c63ff; /* メインカラー（バイオレット系） */
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.1s;
+  letter-spacing: 0.05em; /* 文字間を少し開ける */
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: #5752d9; /* ホバーで少し暗く */
+}
+
+.submit-button:active:not(:disabled) {
+  transform: translateY(1px); /* クリック時の沈み込みエフェクト */
+}
+
+.submit-button:disabled {
+  background-color: #b0aaff; /* 無効化されたボタンの色 */
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* =========================================================================
+   プレースホルダーのスタイル
+========================================================================= */
+input::placeholder {
+  color: #aaaaaa;
+  font-style: italic;
+  font-size: 0.9rem;
+}

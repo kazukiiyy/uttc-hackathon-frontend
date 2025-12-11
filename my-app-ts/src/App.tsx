@@ -1,18 +1,31 @@
-// App.tsx
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route ,Navigate} from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { ItemCreatePage } from './pages/ItemCreatePages'; // さっきのフォームのページ
+import { GoogleLoginPage } from './pages/Login/GoogleLoginPage';
+import { ProtectedRoute } from "./pages/Login/ProtectedRouter";
+import RegisterPage  from './pages/RegisterPage'
+
 
 const App = () => {
+  
   return (
     <BrowserRouter>
       <Routes>
         {/* Layoutで囲むことで、配下のページ全てにタブバーがつきます */}
-        <Route path="/" element={<Layout />}>
+        <Route path="/login" element={<GoogleLoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        } >
          
-          <Route path="sell" element={<ItemCreatePage />} /> {/* ここで出品画面へ！ */}
-        </Route>
+          
+          <Route path="sell" element={<ItemCreatePage />} /> 
+
+        </Route >
+        
       </Routes>
     </BrowserRouter>
   );
