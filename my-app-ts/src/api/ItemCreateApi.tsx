@@ -2,7 +2,8 @@ type itemData = {
   title: string;
   price: string;
   explanation: string;
-  image: File | null; // 画像ファイルそのもの
+  image: File | null; 
+  sellerUid: string;
 };
 
 export const createItem = async (data: itemData) => {

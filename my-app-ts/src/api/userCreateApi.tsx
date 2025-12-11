@@ -7,7 +7,7 @@ export interface UserProfilePayload {
 }
 
 export const PostUser = async (payload: UserProfilePayload): Promise<any> => {
-  const url = 'https://hackathon-backend-982651832089.europe-west1.run.app/user'
+  const url = 'https://hackathon-backend-982651832089.europe-west1.run.app/register'
 
   try {
     const response = await fetch(url, {

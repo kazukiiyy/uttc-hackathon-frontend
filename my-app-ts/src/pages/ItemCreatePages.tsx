@@ -1,4 +1,4 @@
-import React from 'react';
+
 // ↓ featuresフォルダに作った（これから作る）フォーム部品を読み込みます
 import { ItemCreateForm } from '../features/items/components/ItemCreateForm';
 
