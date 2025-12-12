@@ -1,0 +1,64 @@
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-wrapper-full-width {
+  width: 100%;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #555555;
+}
+
+.input-field {
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: #f9f9f9;
+  color: #333333;
+  box-sizing: border-box;
+}
+
+.input-full-width {
+  width: 100%;
+}
+
+.input-field:focus {
+  border-color: #6a11cb;
+  box-shadow: 0 0 0 3px rgba(106, 17, 203, 0.15);
+  background-color: #ffffff;
+}
+
+.input-field:disabled {
+  background-color: #eeeeee;
+  color: #777777;
+  cursor: not-allowed;
+}
+
+.input-field.input-error {
+  border-color: #ff4d4f;
+}
+
+.input-field.input-error:focus {
+  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.15);
+}
+
+.input-error-message {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #ff4d4f;
+}
+
+.input-field::placeholder {
+  color: #aaaaaa;
+  font-style: italic;
+  font-size: 0.9rem;
+}

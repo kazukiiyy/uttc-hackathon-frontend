@@ -1,5 +1,4 @@
-/* ページ全体の中央寄せレイアウト */
-.google-login-container {
+.login-container {
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -9,15 +8,13 @@
   font-family: 'Helvetica', 'Arial', sans-serif;
 }
 
-/* タイトル */
-.google-login-title {
+.login-title {
   font-size: 28px;
   font-weight: bold;
   margin-bottom: 30px;
   color: #333;
 }
 
-/* ボタン共通 */
 .google-btn,
 .logout-btn {
   padding: 12px 24px;
@@ -30,7 +27,6 @@
   transition: all 0.2s ease;
 }
 
-/* Googleログインボタン */
 .google-btn {
   background-color: #4285f4;
   color: #fff;
@@ -40,7 +36,6 @@
   background-color: #357ae8;
 }
 
-/* ログアウトボタン */
 .logout-btn {
   background-color: #e74c3c;
   color: #fff;

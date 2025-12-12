@@ -29,20 +29,9 @@
   font-weight: bold;
 }
 
-/* 出品ボタンだけ特別に目立たせる（メルカリ風） */
+/* 出品ボタン */
 .sell-button {
-  background-color: #ff3333; /* 赤色 */
-  color: white !important;
-  border-radius: 50%; /* 丸くする */
-  width: 60px;
-  height: 60px;
-  margin-bottom: 30px; /* 少し上に浮かせる */
-  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-  font-weight: bold;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  /* 他のナビアイテムと同じスタイル */
 }
 
 /* アプリ全体の余白確保 */

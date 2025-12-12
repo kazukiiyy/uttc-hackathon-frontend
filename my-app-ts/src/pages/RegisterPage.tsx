@@ -1,84 +1,74 @@
-// src/components/RegisterPage.tsx (最終修正版)
-
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { fireAuth } from '../firebase'; // 適切なパスに修正
-import { PostUser, UserProfilePayload } from '../api/userCreateApi'; // PostUserに改名、型をインポート
-import { RegisterForm, RegisterFormData } from '../features/user/RegisterForm'; 
+import { useAuth } from '../contexts';
+import { userApi } from '../api';
+import { RegisterForm } from '../features/user/components/RegisterForm';
+import { Loading } from '../components/ui';
+import type { RegisterFormData, UserProfilePayload } from '../types';
+import './RegisterPage.css';
 
-const RegisterPage: React.FC = () => {
+export const RegisterPage = () => {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true); 
-  const [isSubmitting, setIsSubmitting] = useState(false); 
-  const [error, setError] = useState(''); 
+  const { user, loading: authLoading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  // 認証状態の監視 (変更なし)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(fireAuth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-      } else {
-        alert('ログインが必要です。');
-        navigate('/login');
+    if (!authLoading && !user) {
+      alert('ログインが必要です。');
+      navigate('/login');
+    }
+  }, [authLoading, user, navigate]);
+
+  const handleProfileSubmit = useCallback(
+    async (data: RegisterFormData) => {
+      setError('');
+
+      if (!user) {
+        setError('ユーザー情報が取得できません。再度ログインしてください。');
+        return;
       }
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [navigate]);
 
+      try {
+        setIsSubmitting(true);
 
-  /**
-   * フォームから受け取ったデータを使ってバックエンドAPIにPOST送信
-   */
-  const handleProfileSubmit = useCallback(async (data: RegisterFormData) => {
-    setError('');
-    
-    if (!currentUser) {
-      setError('ユーザー情報が取得できません。再度ログインしてください。');
-      return;
-    }
-    
-    try {
-      setIsSubmitting(true);
-      
-      // フォームデータとUIDを結合し、APIペイロードを作成
-      const payload: UserProfilePayload = {
-        uid: currentUser.uid,
-        ...data, // nickname, sex, birthyear, birthdate が展開される
-      };
+        const payload: UserProfilePayload = {
+          uid: user.uid,
+          nickname: data.nickname,
+          sex: data.sex,
+          birthyear: parseInt(data.birthyear, 10),
+          birthdate: parseInt(data.birthdate, 10),
+        };
 
-      // 🚀 バックエンドAPIにデータを送信
-      await PostUser(payload); // 新しい関数名を使用
+        await userApi.register(payload);
 
-      alert('プロフィール登録が完了しました！');
-      navigate('/'); 
+        alert('プロフィール登録が完了しました！');
+        navigate('/');
+      } catch (err) {
+        console.error('プロフィール登録エラー:', err);
+        setError(err instanceof Error ? err.message : '不明な登録エラーが発生しました。');
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [user, navigate]
+  );
 
-    } catch (err) {
-      console.error('プロフィール登録エラー:', err);
-      setError(err instanceof Error ? err.message : '不明な登録エラーが発生しました。');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [currentUser, navigate]);
-
-
-  if (loading) {
-    return <div>認証情報を確認中...</div>;
+  if (authLoading) {
+    return <Loading message="認証情報を確認中..." />;
   }
 
-  if (!currentUser) {
-    return null; 
+  if (!user) {
+    return null;
   }
 
   return (
     <div className="register-page-container">
-      <h1>ようこそ！新規ユーザー登録</h1>
-      
+      <h1 className="register-page-title">新規ユーザー登録</h1>
+
       <RegisterForm
-        initialEmail={currentUser.email}
-        initialDisplayName={currentUser.displayName}
+        initialEmail={user.email}
+        initialDisplayName={user.displayName}
         onSubmit={handleProfileSubmit}
         isLoading={isSubmitting}
         errorMessage={error}
@@ -86,5 +76,3 @@ const RegisterPage: React.FC = () => {
     </div>
   );
 };
-
-export default RegisterPage;
