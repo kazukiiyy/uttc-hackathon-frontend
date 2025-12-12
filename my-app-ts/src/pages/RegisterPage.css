@@ -1,0 +1,13 @@
+.register-page-container {
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  background-color: #f5f5f5;
+}
+
+.register-page-title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 1rem;
+}

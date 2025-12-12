@@ -1,0 +1,61 @@
+.home-page {
+  min-height: 100%;
+  background-color: #f5f5f5;
+}
+
+.home-header {
+  padding: 16px;
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  color: #fff;
+  text-align: center;
+}
+
+.home-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.home-main {
+  padding: 16px;
+}
+
+.welcome-section {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.welcome-section h2 {
+  margin: 0 0 8px 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.welcome-section p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.home-section {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.home-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.placeholder-text {
+  color: #999;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 40px 0;
+}
