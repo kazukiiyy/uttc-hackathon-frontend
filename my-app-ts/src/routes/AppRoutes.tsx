@@ -7,6 +7,9 @@ import { HomePage } from '../pages/HomePage';
 import { SearchPage } from '../pages/SearchPage';
 import { ItemCreatePage } from '../pages/ItemCreatePage';
 import { MyPage } from '../pages/MyPage';
+import { ItemDetailPage } from '../pages/ItemDetailPage';
+import { DMPage } from '../pages/DMPage';
+import { ProfilePage } from '../pages/ProfilePage';
 
 export const AppRoutes = () => {
   return (
@@ -26,6 +29,9 @@ export const AppRoutes = () => {
         <Route path="search" element={<SearchPage />} />
         <Route path="sell" element={<ItemCreatePage />} />
         <Route path="mypage" element={<MyPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="item/:id" element={<ItemDetailPage />} />
+        <Route path="dm/:recipientUid" element={<DMPage />} />
       </Route>
     </Routes>
   );

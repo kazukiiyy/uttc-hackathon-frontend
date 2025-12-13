@@ -23,3 +23,19 @@ export interface UserProfile {
   birthdate: number;
   createdAt?: Date;
 }
+
+// Firestore用のユーザープロフィール
+export interface FirestoreUserProfile {
+  uid: string;
+  nickname: string;
+  profileImageUrl: string;
+  bio: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FirestoreUserProfileInput {
+  nickname: string;
+  profileImageUrl?: string;
+  bio?: string;
+}
