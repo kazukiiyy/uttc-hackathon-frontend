@@ -8,12 +8,13 @@ export interface ItemCreatePayload {
 }
 
 export interface Item {
-  id: string;
+  id: number;
   title: string;
   price: number;
   explanation: string;
-  imageUrl?: string;
-  sellerUid: string;
+  image_urls?: string[];
+  uid: string;
+  ifPurchased: boolean;
   category: string;
-  createdAt?: Date;
+  created_at: string;
 }

@@ -4,3 +4,6 @@ export { HomePage } from './HomePage';
 export { SearchPage } from './SearchPage';
 export { ItemCreatePage } from './ItemCreatePage';
 export { MyPage } from './MyPage';
+export { ItemDetailPage } from './ItemDetailPage';
+export { DMPage } from './DMPage';
+export { ProfilePage } from './ProfilePage';
