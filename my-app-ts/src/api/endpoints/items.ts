@@ -34,4 +34,10 @@ export const itemsApi = {
   getByUid: (uid: string) => {
     return apiClient.get<Item[]>(`/getItems?uid=${encodeURIComponent(uid)}`);
   },
+
+  purchase: (itemId: number, buyerUid: string) => {
+    return apiClient.put<{ message: string }>(`/items/${itemId}/purchase`, {
+      buyer_uid: buyerUid,
+    });
+  },
 };

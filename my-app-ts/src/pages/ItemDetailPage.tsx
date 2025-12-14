@@ -4,6 +4,7 @@ import { itemsApi } from '../api/endpoints/items';
 import { Item, FirestoreUserProfile } from '../types';
 import { useAuth } from '../contexts';
 import { getUserProfile } from '../api/firestore/userProfile';
+import { getFullImageUrl } from '../utils/imageUrl';
 import './ItemDetailPage.css';
 
 const formatDate = (dateString: string) => {
@@ -26,6 +27,7 @@ export const ItemDetailPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isPurchasing, setIsPurchasing] = useState(false);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -55,6 +57,26 @@ export const ItemDetailPage = () => {
   const handleDMClick = () => {
     if (item) {
       navigate(`/dm/${item.uid}`, { state: { item } });
+    }
+  };
+
+  const handlePurchase = async () => {
+    if (!item || !user) return;
+
+    if (!window.confirm(`「${item.title}」を¥${item.price.toLocaleString()}で購入しますか？`)) {
+      return;
+    }
+
+    setIsPurchasing(true);
+    try {
+      await itemsApi.purchase(item.id, user.uid);
+      setItem({ ...item, ifPurchased: true });
+      alert('購入が完了しました！');
+    } catch (err) {
+      console.error(err);
+      alert('購入に失敗しました。');
+    } finally {
+      setIsPurchasing(false);
     }
   };
 
@@ -112,7 +134,7 @@ export const ItemDetailPage = () => {
           {item.image_urls && item.image_urls.length > 0 ? (
             <>
               <img
-                src={item.image_urls[currentImageIndex]}
+                src={getFullImageUrl(item.image_urls[currentImageIndex])}
                 alt={`${item.title} - 画像${currentImageIndex + 1}`}
                 className="detail-image"
               />
@@ -188,8 +210,25 @@ export const ItemDetailPage = () => {
                   DMを送る
                 </button>
               )}
+              {isOwnItem && (
+                <button onClick={() => navigate('/mypage')} className="dm-button">
+                  DMを確認
+                </button>
+              )}
             </div>
           </div>
+
+          {!isOwnItem && !item.ifPurchased && (
+            <div className="purchase-section">
+              <button
+                onClick={handlePurchase}
+                className="purchase-button"
+                disabled={isPurchasing}
+              >
+                {isPurchasing ? '処理中...' : `¥${item.price.toLocaleString()}で購入する`}
+              </button>
+            </div>
+          )}
         </div>
       </main>
     </div>
