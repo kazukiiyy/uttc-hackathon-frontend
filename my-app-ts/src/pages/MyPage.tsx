@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts';
 import { getUserProfile } from '../api/firestore/userProfile';
 import { messagesApi, Conversation } from '../api/endpoints/messages';
-import { FirestoreUserProfile } from '../types';
+import { itemsApi, PurchasedItem } from '../api/endpoints/items';
+import { FirestoreUserProfile, Item } from '../types';
+import { getFullImageUrl } from '../utils/imageUrl';
 import { Button } from '../components/ui';
 import './MyPage.css';
 
@@ -18,6 +20,10 @@ export const MyPage = () => {
   const [profile, setProfile] = useState<FirestoreUserProfile | null>(null);
   const [conversations, setConversations] = useState<ConversationWithProfile[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [listedItems, setListedItems] = useState<Item[]>([]);
+  const [isLoadingListed, setIsLoadingListed] = useState(true);
+  const [purchasedItems, setPurchasedItems] = useState<PurchasedItem[]>([]);
+  const [isLoadingPurchased, setIsLoadingPurchased] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -63,6 +69,42 @@ export const MyPage = () => {
     fetchConversations();
   }, [user]);
 
+  // 出品した商品を取得
+  useEffect(() => {
+    const fetchListedItems = async () => {
+      if (!user) return;
+
+      try {
+        const data = await itemsApi.getByUid(user.uid);
+        setListedItems(data || []);
+      } catch (err) {
+        console.error('Failed to fetch listed items:', err);
+      } finally {
+        setIsLoadingListed(false);
+      }
+    };
+
+    fetchListedItems();
+  }, [user]);
+
+  // 購入した商品を取得
+  useEffect(() => {
+    const fetchPurchasedItems = async () => {
+      if (!user) return;
+
+      try {
+        const data = await itemsApi.getPurchasedItems(user.uid);
+        setPurchasedItems(data || []);
+      } catch (err) {
+        console.error('Failed to fetch purchased items:', err);
+      } finally {
+        setIsLoadingPurchased(false);
+      }
+    };
+
+    fetchPurchasedItems();
+  }, [user]);
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -74,6 +116,10 @@ export const MyPage = () => {
 
   const handleConversationClick = (partnerUid: string) => {
     navigate(`/dm/${partnerUid}`);
+  };
+
+  const handleItemClick = (itemId: number) => {
+    navigate(`/item/${itemId}`);
   };
 
   const formatTime = (dateString: string) => {
@@ -161,12 +207,69 @@ export const MyPage = () => {
 
         <section className="my-page-section">
           <h3>出品した商品</h3>
-          <p className="placeholder-text">出品した商品がありません</p>
+          {isLoadingListed ? (
+            <p className="placeholder-text">読み込み中...</p>
+          ) : listedItems.length === 0 ? (
+            <p className="placeholder-text">出品した商品がありません</p>
+          ) : (
+            <div className="items-grid-horizontal">
+              {listedItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="item-card-small"
+                  onClick={() => handleItemClick(item.id)}
+                >
+                  {item.image_urls && item.image_urls.length > 0 ? (
+                    <img
+                      src={getFullImageUrl(item.image_urls[0])}
+                      alt={item.title}
+                      className="item-card-image"
+                    />
+                  ) : (
+                    <div className="item-card-image-placeholder">No Image</div>
+                  )}
+                  <div className="item-card-info">
+                    <p className="item-card-title">{item.title}</p>
+                    <p className="item-card-price">¥{item.price.toLocaleString()}</p>
+                    {item.ifPurchased && <span className="sold-badge-small">売切</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="my-page-section">
           <h3>購入した商品</h3>
-          <p className="placeholder-text">購入した商品がありません</p>
+          {isLoadingPurchased ? (
+            <p className="placeholder-text">読み込み中...</p>
+          ) : purchasedItems.length === 0 ? (
+            <p className="placeholder-text">購入した商品がありません</p>
+          ) : (
+            <div className="items-grid-horizontal">
+              {purchasedItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="item-card-small"
+                  onClick={() => handleItemClick(item.id)}
+                >
+                  {item.image_urls && item.image_urls.length > 0 ? (
+                    <img
+                      src={getFullImageUrl(item.image_urls[0])}
+                      alt={item.title}
+                      className="item-card-image"
+                    />
+                  ) : (
+                    <div className="item-card-image-placeholder">No Image</div>
+                  )}
+                  <div className="item-card-info">
+                    <p className="item-card-title">{item.title}</p>
+                    <p className="item-card-price">¥{item.price.toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="my-page-section">

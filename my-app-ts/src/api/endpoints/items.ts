@@ -1,6 +1,17 @@
 import { apiClient } from '../client';
 import { ItemCreatePayload, Item } from '../../types';
 
+export interface PurchasedItem {
+  id: number;
+  title: string;
+  price: number;
+  explanation: string;
+  image_urls: string[];
+  uid: string;
+  category: string;
+  purchased_at: string;
+}
+
 export const itemsApi = {
   create: (data: ItemCreatePayload) => {
     const formData = new FormData();
@@ -39,5 +50,15 @@ export const itemsApi = {
     return apiClient.put<{ message: string }>(`/items/${itemId}/purchase`, {
       buyer_uid: buyerUid,
     });
+  },
+
+  getPurchasedItems: (buyerUid: string) => {
+    return apiClient.get<PurchasedItem[]>(
+      `/purchases?buyer_uid=${encodeURIComponent(buyerUid)}`
+    );
+  },
+
+  getLatest: (limit: number = 10) => {
+    return apiClient.get<Item[]>(`/getItems/latest?limit=${limit}`);
   },
 };

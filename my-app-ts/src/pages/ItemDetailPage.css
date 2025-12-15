@@ -120,11 +120,61 @@
   color: #333;
 }
 
+.price-like-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
 .detail-price {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 1.5rem;
   font-weight: bold;
   color: #e74c3c;
+}
+
+.like-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: #fff;
+  border: 2px solid #e0e0e0;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1rem;
+}
+
+.like-button:hover:not(:disabled) {
+  border-color: #e74c3c;
+}
+
+.like-button.liked {
+  border-color: #e74c3c;
+  background-color: #fef0ef;
+}
+
+.like-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.like-icon {
+  font-size: 1.2rem;
+  color: #999;
+  transition: color 0.2s;
+}
+
+.like-button.liked .like-icon {
+  color: #e74c3c;
+}
+
+.like-count {
+  font-size: 0.95rem;
+  color: #666;
+  font-weight: 500;
 }
 
 .detail-meta {

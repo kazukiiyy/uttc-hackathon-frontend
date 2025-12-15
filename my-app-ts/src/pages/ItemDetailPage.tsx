@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { itemsApi } from '../api/endpoints/items';
+import { likesApi } from '../api/endpoints/likes';
 import { Item, FirestoreUserProfile } from '../types';
 import { useAuth } from '../contexts';
 import { getUserProfile } from '../api/firestore/userProfile';
@@ -28,6 +29,9 @@ export const ItemDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [isLikeLoading, setIsLikeLoading] = useState(false);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -53,6 +57,49 @@ export const ItemDetailPage = () => {
 
     fetchItem();
   }, [id]);
+
+  // itemから初期like_countを設定し、いいね状態を取得
+  useEffect(() => {
+    if (item) {
+      setLikeCount(item.like_count);
+    }
+  }, [item]);
+
+  useEffect(() => {
+    const fetchLikeStatus = async () => {
+      if (!id || !user) return;
+
+      try {
+        const status = await likesApi.getLikeStatus(parseInt(id), user.uid);
+        setIsLiked(status.liked);
+      } catch (err) {
+        console.error('Failed to fetch like status:', err);
+      }
+    };
+
+    fetchLikeStatus();
+  }, [id, user]);
+
+  const handleLikeToggle = async () => {
+    if (!item || !user || isLikeLoading) return;
+
+    setIsLikeLoading(true);
+    try {
+      if (isLiked) {
+        await likesApi.removeLike(item.id, user.uid);
+        setIsLiked(false);
+        setLikeCount((prev) => Math.max(0, prev - 1));
+      } else {
+        await likesApi.addLike(item.id, user.uid);
+        setIsLiked(true);
+        setLikeCount((prev) => prev + 1);
+      }
+    } catch (err) {
+      console.error('Failed to toggle like:', err);
+    } finally {
+      setIsLikeLoading(false);
+    }
+  };
 
   const handleDMClick = () => {
     if (item) {
@@ -165,7 +212,17 @@ export const ItemDetailPage = () => {
 
         <div className="detail-content">
           <h1 className="detail-title">{item.title}</h1>
-          <p className="detail-price">¥{item.price.toLocaleString()}</p>
+          <div className="price-like-row">
+            <p className="detail-price">¥{item.price.toLocaleString()}</p>
+            <button
+              className={`like-button ${isLiked ? 'liked' : ''}`}
+              onClick={handleLikeToggle}
+              disabled={!user || isLikeLoading}
+            >
+              <span className="like-icon">{isLiked ? '♥' : '♡'}</span>
+              <span className="like-count">{likeCount}</span>
+            </button>
+          </div>
 
           <div className="detail-meta">
             <span className="meta-item">
