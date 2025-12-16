@@ -120,40 +120,55 @@
   color: #333;
 }
 
-.price-like-row {
+/* 価格カード */
+.price-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.price-card-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
 }
 
 .detail-price {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #e74c3c;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.price-currency {
+  font-size: 1rem;
+  font-weight: 400;
+  opacity: 0.9;
+  margin-right: 4px;
 }
 
 .like-button {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  background-color: #fff;
-  border: 2px solid #e0e0e0;
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
   border-radius: 24px;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 1rem;
+  color: #fff;
 }
 
 .like-button:hover:not(:disabled) {
-  border-color: #e74c3c;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .like-button.liked {
-  border-color: #e74c3c;
-  background-color: #fef0ef;
+  background: rgba(255, 255, 255, 0.95);
+  color: #e74c3c;
 }
 
 .like-button:disabled {
@@ -163,18 +178,15 @@
 
 .like-icon {
   font-size: 1.2rem;
-  color: #999;
-  transition: color 0.2s;
+  transition: transform 0.2s;
 }
 
 .like-button.liked .like-icon {
-  color: #e74c3c;
+  transform: scale(1.1);
 }
 
 .like-count {
-  font-size: 0.95rem;
-  color: #666;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .detail-meta {
@@ -241,8 +253,19 @@
   color: #333;
 }
 
-.seller-section {
-  margin-bottom: 0;
+/* 出品者カード */
+.seller-card {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.seller-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 400;
 }
 
 .seller-info {
@@ -252,38 +275,42 @@
 }
 
 .seller-avatar {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 .seller-avatar-placeholder {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background-color: #e0e0e0;
+  background-color: rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 .seller-name {
-  font-size: 1rem;
-  color: #333;
+  font-size: 1.1rem;
+  color: #fff;
+  font-weight: 600;
   flex: 1;
 }
 
 .dm-button {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  background: rgba(255, 255, 255, 0.25);
   color: #fff;
   border: none;
   padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 0.95rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: background-color 0.2s;
 }
 
 .dm-button:hover {
-  opacity: 0.9;
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .loading-text,
@@ -297,37 +324,219 @@
   color: #e74c3c;
 }
 
+/* 購入ボタン - 固定フッター */
 .purchase-section {
-  margin-top: 16px;
-  padding: 16px;
-  background-color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  position: fixed;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  box-shadow: 0 -4px 20px rgba(231, 76, 60, 0.3);
+  z-index: 999;
 }
 
 .purchase-button {
   width: 100%;
   padding: 16px;
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.95);
+  color: #e74c3c;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 1.1rem;
   font-weight: bold;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  transition: all 0.2s;
 }
 
 .purchase-button:hover:not(:disabled) {
-  opacity: 0.9;
-  transform: translateY(-1px);
+  background: #fff;
+  transform: scale(1.02);
 }
 
 .purchase-button:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .purchase-button:disabled {
-  background: #ccc;
+  background: rgba(255, 255, 255, 0.5);
+  color: rgba(231, 76, 60, 0.5);
   cursor: not-allowed;
+}
+
+/* 購入モーダル */
+.purchase-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+}
+
+.purchase-modal {
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-title {
+  margin: 0 0 8px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-align: center;
+  color: #333;
+}
+
+.modal-subtitle {
+  margin: 0 0 24px;
+  font-size: 0.9rem;
+  color: #666;
+  text-align: center;
+}
+
+.payment-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.payment-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.payment-option.cash {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: #fff;
+}
+
+.payment-option.crypto {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.payment-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.payment-icon {
+  font-size: 1.8rem;
+  width: 40px;
+  text-align: center;
+}
+
+.payment-label {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.payment-price {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.modal-close-btn {
+  width: 100%;
+  padding: 14px;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  color: #666;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.modal-close-btn:hover {
+  background: #eee;
+}
+
+/* モーダルステータス表示 */
+.modal-status {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.modal-status h2 {
+  margin: 16px 0 8px;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.modal-status p {
+  margin: 0 0 16px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.modal-status.success .status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  border-radius: 50%;
+  font-size: 2rem;
+  color: #fff;
+}
+
+.modal-status.error .status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  border-radius: 50%;
+  font-size: 2rem;
+  color: #fff;
+}
+
+.tx-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.tx-link:hover {
+  text-decoration: underline;
+}
+
+/* スピナー */
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

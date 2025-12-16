@@ -10,13 +10,54 @@
   text-align: center;
 }
 
+.profile-avatar-container {
+  position: relative;
+  width: 80px;
+  margin: 0 auto 12px;
+}
+
 .profile-avatar {
   width: 80px;
   height: 80px;
-  margin: 0 auto 12px;
   border-radius: 50%;
   overflow: hidden;
   background-color: rgba(255, 255, 255, 0.2);
+}
+
+.wallet-badge {
+  position: absolute;
+  bottom: 0;
+  right: -4px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  color: #fff;
+}
+
+.wallet-badge.connected {
+  background-color: #27ae60;
+}
+
+.wallet-badge.wrong-network {
+  background-color: #f39c12;
+}
+
+.header-wallet-info {
+  margin-top: 8px;
+}
+
+.header-wallet-address {
+  display: inline-block;
+  padding: 4px 12px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-family: monospace;
+  letter-spacing: 0.5px;
 }
 
 .profile-avatar img {
@@ -291,4 +332,130 @@
   font-weight: bold;
   padding: 2px 6px;
   border-radius: 4px;
+}
+
+/* ウォレットセクション */
+.wallet-section {
+  padding: 4px 0;
+}
+
+.wallet-connect {
+  text-align: center;
+}
+
+.wallet-description {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* ウォレットカード */
+.wallet-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 20px;
+  color: #fff;
+  position: relative;
+}
+
+.wallet-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.wallet-card-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.balance-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.balance-symbol {
+  font-size: 1rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.disconnect-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.disconnect-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.wallet-card-address {
+  font-family: monospace;
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
+
+.wallet-card-network {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.wallet-card-network:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.network-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.6);
+}
+
+.dropdown-arrow {
+  font-size: 0.6rem;
+  opacity: 0.8;
+}
+
+.network-select {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.network-option {
+  padding: 12px 16px;
+  background-color: rgba(255, 255, 255, 0.15);
+  border: none;
+  text-align: left;
+  font-size: 0.85rem;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.network-option:hover {
+  background-color: rgba(255, 255, 255, 0.25);
 }

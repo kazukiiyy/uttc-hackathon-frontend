@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { itemsApi } from '../api/endpoints/items';
 import { likesApi } from '../api/endpoints/likes';
+import { paymentApi, PaymentOrder } from '../api/endpoints/payment';
 import { Item, FirestoreUserProfile } from '../types';
-import { useAuth } from '../contexts';
+import { useAuth, useWallet } from '../contexts';
 import { getUserProfile } from '../api/firestore/userProfile';
 import { getFullImageUrl } from '../utils/imageUrl';
 import './ItemDetailPage.css';
@@ -19,10 +20,21 @@ const formatDate = (dateString: string) => {
   });
 };
 
+type PurchaseStep = 'select' | 'processing' | 'confirming' | 'success' | 'error';
+
 export const ItemDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const {
+    address,
+    isConnected,
+    isSepoliaNetwork,
+    connect,
+    switchNetwork,
+    sendTransaction,
+  } = useWallet();
+
   const [item, setItem] = useState<Item | null>(null);
   const [sellerProfile, setSellerProfile] = useState<FirestoreUserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +44,13 @@ export const ItemDetailPage = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
+
+  // 購入モーダル用
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchaseStep, setPurchaseStep] = useState<PurchaseStep>('select');
+  const [paymentOrder, setPaymentOrder] = useState<PaymentOrder | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -107,23 +126,72 @@ export const ItemDetailPage = () => {
     }
   };
 
-  const handlePurchase = async () => {
+  // 購入ボタンクリック - モーダルを開く
+  const handlePurchaseClick = () => {
+    setShowPurchaseModal(true);
+    setPurchaseStep('select');
+    setPurchaseError(null);
+    setTxHash(null);
+    setPaymentOrder(null);
+  };
+
+  // 現金で購入
+  const handleCashPurchase = async () => {
     if (!item || !user) return;
 
-    if (!window.confirm(`「${item.title}」を¥${item.price.toLocaleString()}で購入しますか？`)) {
-      return;
-    }
-
     setIsPurchasing(true);
+    setPurchaseStep('processing');
     try {
       await itemsApi.purchase(item.id, user.uid);
       setItem({ ...item, ifPurchased: true });
-      alert('購入が完了しました！');
+      setPurchaseStep('success');
     } catch (err) {
       console.error(err);
-      alert('購入に失敗しました。');
+      setPurchaseError('購入に失敗しました');
+      setPurchaseStep('error');
     } finally {
       setIsPurchasing(false);
+    }
+  };
+
+  // Sepoliaで購入
+  const handleCryptoPurchase = async () => {
+    if (!item || !user || !address) return;
+
+    setIsPurchasing(true);
+    setPurchaseStep('processing');
+    setPurchaseError(null);
+
+    try {
+      // 1. 支払い注文を作成
+      const order = await paymentApi.createOrder(item.id.toString(), address);
+      setPaymentOrder(order);
+
+      // 2. トランザクションを送信
+      const hash = await sendTransaction(order.payment_addr, order.amount_eth);
+      setTxHash(hash);
+      setPurchaseStep('confirming');
+
+      // 3. 支払いを確認
+      await paymentApi.confirmPayment(order.order_id, order.product_id, hash);
+
+      // 4. バックエンドで購入を完了
+      await itemsApi.purchase(item.id, user.uid);
+      setItem({ ...item, ifPurchased: true });
+      setPurchaseStep('success');
+    } catch (err: any) {
+      console.error(err);
+      setPurchaseError(err.message || '購入に失敗しました');
+      setPurchaseStep('error');
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  // モーダルを閉じる
+  const closePurchaseModal = () => {
+    if (purchaseStep !== 'processing' && purchaseStep !== 'confirming') {
+      setShowPurchaseModal(false);
     }
   };
 
@@ -212,16 +280,21 @@ export const ItemDetailPage = () => {
 
         <div className="detail-content">
           <h1 className="detail-title">{item.title}</h1>
-          <div className="price-like-row">
-            <p className="detail-price">¥{item.price.toLocaleString()}</p>
-            <button
-              className={`like-button ${isLiked ? 'liked' : ''}`}
-              onClick={handleLikeToggle}
-              disabled={!user || isLikeLoading}
-            >
-              <span className="like-icon">{isLiked ? '♥' : '♡'}</span>
-              <span className="like-count">{likeCount}</span>
-            </button>
+          <div className="price-card">
+            <div className="price-card-row">
+              <p className="detail-price">
+                <span className="price-currency">¥</span>
+                {item.price.toLocaleString()}
+              </p>
+              <button
+                className={`like-button ${isLiked ? 'liked' : ''}`}
+                onClick={handleLikeToggle}
+                disabled={!user || isLikeLoading}
+              >
+                <span className="like-icon">{isLiked ? '♥' : '♡'}</span>
+                <span className="like-count">{likeCount}</span>
+              </button>
+            </div>
           </div>
 
           <div className="detail-meta">
@@ -247,7 +320,7 @@ export const ItemDetailPage = () => {
             <p className="detail-category">{item.category}</p>
           </div>
 
-          <div className="detail-section seller-section">
+          <div className="seller-card">
             <h3>出品者</h3>
             <div className="seller-info">
               {sellerProfile?.profileImageUrl ? (
@@ -278,7 +351,7 @@ export const ItemDetailPage = () => {
           {!isOwnItem && !item.ifPurchased && (
             <div className="purchase-section">
               <button
-                onClick={handlePurchase}
+                onClick={handlePurchaseClick}
                 className="purchase-button"
                 disabled={isPurchasing}
               >
@@ -288,6 +361,115 @@ export const ItemDetailPage = () => {
           )}
         </div>
       </main>
+
+      {/* 購入方法選択モーダル */}
+      {showPurchaseModal && (
+        <div className="purchase-modal-overlay" onClick={closePurchaseModal}>
+          <div className="purchase-modal" onClick={(e) => e.stopPropagation()}>
+            {purchaseStep === 'select' && (
+              <>
+                <h2 className="modal-title">購入方法を選択</h2>
+                <p className="modal-subtitle">「{item.title}」を購入します</p>
+
+                <div className="payment-options">
+                  <button className="payment-option cash" onClick={handleCashPurchase}>
+                    <span className="payment-icon">💴</span>
+                    <span className="payment-label">現金で購入</span>
+                    <span className="payment-price">¥{item.price.toLocaleString()}</span>
+                  </button>
+
+                  <button
+                    className="payment-option crypto"
+                    onClick={async () => {
+                      if (!isConnected) {
+                        await connect();
+                        return;
+                      }
+                      if (!isSepoliaNetwork) {
+                        await switchNetwork('sepolia');
+                        return;
+                      }
+                      handleCryptoPurchase();
+                    }}
+                  >
+                    <span className="payment-icon">⟠</span>
+                    <span className="payment-label">
+                      {!isConnected
+                        ? 'ウォレットを接続'
+                        : !isSepoliaNetwork
+                        ? 'Sepoliaに切替'
+                        : 'Sepolia ETHで購入'}
+                    </span>
+                    <span className="payment-price">0.001 ETH (Demo)</span>
+                  </button>
+                </div>
+
+                <button className="modal-close-btn" onClick={closePurchaseModal}>
+                  キャンセル
+                </button>
+              </>
+            )}
+
+            {purchaseStep === 'processing' && (
+              <div className="modal-status">
+                <div className="spinner"></div>
+                <h2>処理中...</h2>
+                <p>トランザクションを送信しています</p>
+              </div>
+            )}
+
+            {purchaseStep === 'confirming' && (
+              <div className="modal-status">
+                <div className="spinner"></div>
+                <h2>確認中...</h2>
+                <p>ブロックチェーンで確認しています</p>
+                {txHash && (
+                  <a
+                    href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tx-link"
+                  >
+                    Etherscanで確認 →
+                  </a>
+                )}
+              </div>
+            )}
+
+            {purchaseStep === 'success' && (
+              <div className="modal-status success">
+                <span className="status-icon">✓</span>
+                <h2>購入完了！</h2>
+                <p>「{item.title}」を購入しました</p>
+                {txHash && (
+                  <a
+                    href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tx-link"
+                  >
+                    Etherscanで確認 →
+                  </a>
+                )}
+                <button className="modal-close-btn" onClick={closePurchaseModal}>
+                  閉じる
+                </button>
+              </div>
+            )}
+
+            {purchaseStep === 'error' && (
+              <div className="modal-status error">
+                <span className="status-icon">✗</span>
+                <h2>エラー</h2>
+                <p>{purchaseError}</p>
+                <button className="modal-close-btn" onClick={() => setPurchaseStep('select')}>
+                  戻る
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

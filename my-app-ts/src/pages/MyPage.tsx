@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts';
+import { useAuth, useWallet } from '../contexts';
 import { getUserProfile } from '../api/firestore/userProfile';
 import { messagesApi, Conversation } from '../api/endpoints/messages';
 import { itemsApi, PurchasedItem } from '../api/endpoints/items';
@@ -17,6 +17,18 @@ interface ConversationWithProfile extends Conversation {
 export const MyPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const {
+    address,
+    balance,
+    isConnected,
+    isConnecting,
+    networkName,
+    networkSymbol,
+    connect,
+    disconnect,
+    switchNetwork,
+  } = useWallet();
+  const [showNetworkSelect, setShowNetworkSelect] = useState(false);
   const [profile, setProfile] = useState<FirestoreUserProfile | null>(null);
   const [conversations, setConversations] = useState<ConversationWithProfile[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
@@ -141,20 +153,35 @@ export const MyPage = () => {
   const displayName = profile?.nickname || user?.displayName || 'ゲスト';
   const displayImage = profile?.profileImageUrl || user?.photoURL;
 
+
   return (
     <div className="my-page">
       <header className="my-page-header">
-        <div className="profile-avatar">
-          {displayImage ? (
-            <img src={displayImage} alt="プロフィール" />
-          ) : (
-            <div className="avatar-placeholder">
-              {displayName.charAt(0) || '?'}
+        <div className="profile-avatar-container">
+          <div className="profile-avatar">
+            {displayImage ? (
+              <img src={displayImage} alt="プロフィール" />
+            ) : (
+              <div className="avatar-placeholder">
+                {displayName.charAt(0) || '?'}
+              </div>
+            )}
+          </div>
+          {isConnected && (
+            <div className="wallet-badge connected" title={address || ''}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+              </svg>
             </div>
           )}
         </div>
         <h2>{displayName}</h2>
         <p>{user?.email}</p>
+        {isConnected && (
+          <div className="header-wallet-info">
+            <span className="header-wallet-address">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+          </div>
+        )}
         {profile?.bio && <p className="profile-bio">{profile.bio}</p>}
       </header>
 
@@ -270,6 +297,83 @@ export const MyPage = () => {
               ))}
             </div>
           )}
+        </section>
+
+        <section className="my-page-section">
+          <h3>ウォレット</h3>
+          <div className="wallet-section">
+            {!isConnected ? (
+              <div className="wallet-connect">
+                <p className="wallet-description">
+                  MetaMaskウォレットを接続して、暗号通貨での取引を有効にしましょう
+                </p>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={connect}
+                  disabled={isConnecting}
+                >
+                  {isConnecting ? '接続中...' : 'ウォレットを接続'}
+                </Button>
+              </div>
+            ) : (
+              <div className="wallet-card">
+                <div className="wallet-card-header">
+                  <div className="wallet-card-balance">
+                    <span className="balance-value">
+                      {balance ? parseFloat(balance).toFixed(4) : '0.0000'}
+                    </span>
+                    <span className="balance-symbol">{networkSymbol || 'ETH'}</span>
+                  </div>
+                  <button className="disconnect-btn" onClick={disconnect}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                    </svg>
+                  </button>
+                </div>
+                <div className="wallet-card-address">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </div>
+                <div
+                  className="wallet-card-network"
+                  onClick={() => setShowNetworkSelect(!showNetworkSelect)}
+                >
+                  <span className="network-dot"></span>
+                  <span>{networkName || 'Unknown'}</span>
+                  <span className="dropdown-arrow">{showNetworkSelect ? '▲' : '▼'}</span>
+                </div>
+
+                {showNetworkSelect && (
+                  <div className="network-select">
+                    <button
+                      className="network-option"
+                      onClick={() => { switchNetwork('ethereum'); setShowNetworkSelect(false); }}
+                    >
+                      Ethereum Mainnet
+                    </button>
+                    <button
+                      className="network-option"
+                      onClick={() => { switchNetwork('sepolia'); setShowNetworkSelect(false); }}
+                    >
+                      Sepolia Testnet
+                    </button>
+                    <button
+                      className="network-option"
+                      onClick={() => { switchNetwork('polygon'); setShowNetworkSelect(false); }}
+                    >
+                      Polygon Mainnet
+                    </button>
+                    <button
+                      className="network-option"
+                      onClick={() => { switchNetwork('mumbai'); setShowNetworkSelect(false); }}
+                    >
+                      Polygon Mumbai
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="my-page-section">
