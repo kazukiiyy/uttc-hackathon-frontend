@@ -17,9 +17,32 @@
 
 .dm-header-info {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.recipient-uid {
+.dm-header-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.dm-header-avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.recipient-name {
   font-size: 1rem;
   font-weight: 600;
   color: #333;
@@ -112,11 +135,32 @@
   word-break: break-word;
 }
 
-.message-time {
-  display: block;
-  font-size: 0.7rem;
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 4px;
+}
+
+.message-time {
+  font-size: 0.7rem;
   opacity: 0.7;
+}
+
+.message-status {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.message-status.read {
+  opacity: 1;
+}
+
+.dm-loading {
+  text-align: center;
+  color: #999;
+  padding: 40px 20px;
+  font-size: 0.9rem;
 }
 
 .dm-footer {

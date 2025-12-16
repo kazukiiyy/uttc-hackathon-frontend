@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { itemsApi } from '../api/endpoints/items';
+import { likesApi } from '../api/endpoints/likes';
 import { Item, FirestoreUserProfile } from '../types';
 import { useAuth } from '../contexts';
 import { getUserProfile } from '../api/firestore/userProfile';
+import { getFullImageUrl } from '../utils/imageUrl';
 import './ItemDetailPage.css';
 
 const formatDate = (dateString: string) => {
@@ -26,6 +28,10 @@ export const ItemDetailPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [isLikeLoading, setIsLikeLoading] = useState(false);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -52,9 +58,72 @@ export const ItemDetailPage = () => {
     fetchItem();
   }, [id]);
 
+  // itemから初期like_countを設定し、いいね状態を取得
+  useEffect(() => {
+    if (item) {
+      setLikeCount(item.like_count);
+    }
+  }, [item]);
+
+  useEffect(() => {
+    const fetchLikeStatus = async () => {
+      if (!id || !user) return;
+
+      try {
+        const status = await likesApi.getLikeStatus(parseInt(id), user.uid);
+        setIsLiked(status.liked);
+      } catch (err) {
+        console.error('Failed to fetch like status:', err);
+      }
+    };
+
+    fetchLikeStatus();
+  }, [id, user]);
+
+  const handleLikeToggle = async () => {
+    if (!item || !user || isLikeLoading) return;
+
+    setIsLikeLoading(true);
+    try {
+      if (isLiked) {
+        await likesApi.removeLike(item.id, user.uid);
+        setIsLiked(false);
+        setLikeCount((prev) => Math.max(0, prev - 1));
+      } else {
+        await likesApi.addLike(item.id, user.uid);
+        setIsLiked(true);
+        setLikeCount((prev) => prev + 1);
+      }
+    } catch (err) {
+      console.error('Failed to toggle like:', err);
+    } finally {
+      setIsLikeLoading(false);
+    }
+  };
+
   const handleDMClick = () => {
     if (item) {
       navigate(`/dm/${item.uid}`, { state: { item } });
+    }
+  };
+
+  const handlePurchase = async () => {
+    if (!item || !user) return;
+
+    if (!window.confirm(`「${item.title}」を¥${item.price.toLocaleString()}で購入しますか？`)) {
+      return;
+    }
+
+    setIsPurchasing(true);
+    try {
+      await itemsApi.purchase(item.id, user.uid);
+      setItem({ ...item, ifPurchased: true });
+      alert('購入が完了しました！');
+    } catch (err) {
+      console.error(err);
+      alert('購入に失敗しました。');
+    } finally {
+      setIsPurchasing(false);
     }
   };
 
@@ -112,7 +181,7 @@ export const ItemDetailPage = () => {
           {item.image_urls && item.image_urls.length > 0 ? (
             <>
               <img
-                src={item.image_urls[currentImageIndex]}
+                src={getFullImageUrl(item.image_urls[currentImageIndex])}
                 alt={`${item.title} - 画像${currentImageIndex + 1}`}
                 className="detail-image"
               />
@@ -143,7 +212,17 @@ export const ItemDetailPage = () => {
 
         <div className="detail-content">
           <h1 className="detail-title">{item.title}</h1>
-          <p className="detail-price">¥{item.price.toLocaleString()}</p>
+          <div className="price-like-row">
+            <p className="detail-price">¥{item.price.toLocaleString()}</p>
+            <button
+              className={`like-button ${isLiked ? 'liked' : ''}`}
+              onClick={handleLikeToggle}
+              disabled={!user || isLikeLoading}
+            >
+              <span className="like-icon">{isLiked ? '♥' : '♡'}</span>
+              <span className="like-count">{likeCount}</span>
+            </button>
+          </div>
 
           <div className="detail-meta">
             <span className="meta-item">
@@ -188,8 +267,25 @@ export const ItemDetailPage = () => {
                   DMを送る
                 </button>
               )}
+              {isOwnItem && (
+                <button onClick={() => navigate('/mypage')} className="dm-button">
+                  DMを確認
+                </button>
+              )}
             </div>
           </div>
+
+          {!isOwnItem && !item.ifPurchased && (
+            <div className="purchase-section">
+              <button
+                onClick={handlePurchase}
+                className="purchase-button"
+                disabled={isPurchasing}
+              >
+                {isPurchasing ? '処理中...' : `¥${item.price.toLocaleString()}で購入する`}
+              </button>
+            </div>
+          )}
         </div>
       </main>
     </div>

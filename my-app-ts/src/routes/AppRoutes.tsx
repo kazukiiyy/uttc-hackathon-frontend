@@ -10,6 +10,7 @@ import { MyPage } from '../pages/MyPage';
 import { ItemDetailPage } from '../pages/ItemDetailPage';
 import { DMPage } from '../pages/DMPage';
 import { ProfilePage } from '../pages/ProfilePage';
+import { ProfileEditPage } from '../pages/ProfileEditPage';
 
 export const AppRoutes = () => {
   return (
@@ -30,6 +31,7 @@ export const AppRoutes = () => {
         <Route path="sell" element={<ItemCreatePage />} />
         <Route path="mypage" element={<MyPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="profile/edit" element={<ProfileEditPage />} />
         <Route path="item/:id" element={<ItemDetailPage />} />
         <Route path="dm/:recipientUid" element={<DMPage />} />
       </Route>

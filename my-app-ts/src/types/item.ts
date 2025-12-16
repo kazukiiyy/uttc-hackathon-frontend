@@ -16,5 +16,6 @@ export interface Item {
   uid: string;
   ifPurchased: boolean;
   category: string;
+  like_count: number;
   created_at: string;
 }

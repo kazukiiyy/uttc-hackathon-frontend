@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 import { itemsApi } from '../api/endpoints/items';
 import { Item } from '../types';
+import { getFullImageUrl } from '../utils/imageUrl';
 import './SearchPage.css';
 
 const categoryData = [
@@ -148,7 +149,7 @@ export const SearchPage = () => {
                   >
                     {item.image_urls && item.image_urls.length > 0 ? (
                       <img
-                        src={item.image_urls[0]}
+                        src={getFullImageUrl(item.image_urls[0])}
                         alt={item.title}
                         className="item-image"
                       />
