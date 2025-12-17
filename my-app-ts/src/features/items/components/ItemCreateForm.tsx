@@ -27,11 +27,10 @@ export const ItemCreateForm = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ブロックチェーン出品用
+  // ブロックチェーン出品用（常にonchain出品）
   const [listingStep, setListingStep] = useState<ListingStep>('form');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [listingError, setListingError] = useState<string | null>(null);
-  const [useBlockchain, setUseBlockchain] = useState(false);
 
   const categories = [
     'ファッション',
@@ -56,29 +55,7 @@ export const ItemCreateForm = () => {
     }
   };
 
-  // 従来のAPI経由での出品
-  const handleTraditionalSubmit = async () => {
-    if (!user || !image) return;
-
-    try {
-      await itemsApi.create({
-        title,
-        price,
-        explanation,
-        category,
-        image,
-        sellerUid: user.uid,
-      });
-
-      alert('出品が完了しました！');
-      navigate('/');
-    } catch (error) {
-      console.error('商品登録エラー:', error);
-      alert('商品データの送信中にエラーが発生しました。');
-    }
-  };
-
-  // ブロックチェーン経由での出品
+  // ブロックチェーン経由での出品（常にonchain出品）
   const handleBlockchainSubmit = async (imageUrl: string) => {
     if (!user || !address) {
       setListingError('ユーザーまたはウォレットが接続されていません');
@@ -151,44 +128,49 @@ export const ItemCreateForm = () => {
       return;
     }
 
+    // ウォレット接続チェック
+    if (!isConnected) {
+      alert('ウォレットを接続してください。');
+      return;
+    }
+
+    if (!isSepoliaNetwork) {
+      alert('Sepoliaネットワークに切り替えてください。');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      if (useBlockchain) {
-        // ブロックチェーン出品の場合、画像のみをアップロードしてURLを取得
-        // 商品データはonchainイベントからDBに挿入される
-        let imageUrl = '';
+      // ブロックチェーン出品（常にonchain出品）
+      // 画像のみをアップロードしてURLを取得
+      // 商品データはonchainイベントからDBに挿入される
+      let imageUrl = '';
+      
+      try {
+        // 画像のみをアップロードしてURLを取得
+        const response = await itemsApi.uploadImage(image);
+        imageUrl = response?.image_url || response?.image_urls?.[0] || '';
         
-        try {
-          // 画像のみをアップロードしてURLを取得
-          const response = await itemsApi.uploadImage(image);
-          imageUrl = response?.image_url || response?.image_urls?.[0] || '';
-          
-          if (!imageUrl) {
-            throw new Error('画像URLの取得に失敗しました');
-          }
-        } catch (error: any) {
-          console.error('画像アップロードエラー:', error);
-          setListingError(`画像のアップロードに失敗しました: ${error.message || '不明なエラー'}`);
-          setListingStep('error');
-          return;
+        if (!imageUrl) {
+          throw new Error('画像URLの取得に失敗しました');
         }
-
-        // ブロックチェーンに出品（イベントからDBに挿入される）
-        await handleBlockchainSubmit(imageUrl);
-      } else {
-        await handleTraditionalSubmit();
+      } catch (error: any) {
+        console.error('画像アップロードエラー:', error);
+        setListingError(`画像のアップロードに失敗しました: ${error.message || '不明なエラー'}`);
+        setListingStep('error');
+        setIsSubmitting(false);
+        return;
       }
+
+      // ブロックチェーンに出品（イベントからDBに挿入される）
+      await handleBlockchainSubmit(imageUrl);
     } catch (error: any) {
       console.error('商品登録エラー:', error);
-      if (!useBlockchain) {
-        alert('商品データの送信中にエラーが発生しました。');
-      } else {
-        // onchain出品の場合、エラーはhandleBlockchainSubmitで処理される
-        if (!listingError) {
-          setListingError(error.message || '出品に失敗しました');
-          setListingStep('error');
-        }
+      // エラーはhandleBlockchainSubmitで処理される
+      if (!listingError) {
+        setListingError(error.message || '出品に失敗しました');
+        setListingStep('error');
       }
     } finally {
       setIsSubmitting(false);
@@ -342,56 +324,42 @@ export const ItemCreateForm = () => {
           </select>
         </div>
 
-        {/* ブロックチェーン出品オプション */}
+        {/* ウォレット接続情報（常にonchain出品） */}
         <div className="blockchain-option">
-          <label className="blockchain-toggle">
-            <input
-              type="checkbox"
-              checked={useBlockchain}
-              onChange={(e) => setUseBlockchain(e.target.checked)}
-            />
-            <span className="toggle-label">
-              <span className="toggle-icon">⟠</span>
-              ブロックチェーンに出品 (Sepolia)
-            </span>
-          </label>
-          {useBlockchain && (
-            <div className="blockchain-info">
-              {!isConnected ? (
-                <button
-                  type="button"
-                  className="wallet-connect-btn"
-                  onClick={connect}
-                >
-                  ウォレットを接続
-                </button>
-              ) : !isSepoliaNetwork ? (
-                <button
-                  type="button"
-                  className="wallet-connect-btn"
-                  onClick={() => switchNetwork('sepolia')}
-                >
-                  Sepoliaに切り替え
-                </button>
-              ) : (
-                <p className="wallet-connected">
-                  接続中: {address?.slice(0, 6)}...{address?.slice(-4)}
-                </p>
-              )}
-            </div>
-          )}
+          <div className="blockchain-info">
+            {!isConnected ? (
+              <button
+                type="button"
+                className="wallet-connect-btn"
+                onClick={connect}
+              >
+                ウォレットを接続
+              </button>
+            ) : !isSepoliaNetwork ? (
+              <button
+                type="button"
+                className="wallet-connect-btn"
+                onClick={() => switchNetwork('sepolia')}
+              >
+                Sepoliaに切り替え
+              </button>
+            ) : (
+              <p className="wallet-connected">
+                <span className="toggle-icon">⟠</span>
+                接続中: {address?.slice(0, 6)}...{address?.slice(-4)} (Sepolia)
+              </p>
+            )}
+          </div>
         </div>
 
         <button
           type="submit"
           className="submit-button"
-          disabled={isSubmitting || (useBlockchain && (!isConnected || !isSepoliaNetwork))}
+          disabled={isSubmitting || !isConnected || !isSepoliaNetwork}
         >
           {isSubmitting
             ? '出品中...'
-            : useBlockchain
-            ? `${ethPrice} ETH で出品する`
-            : '出品する'}
+            : `${ethPrice} ETH で出品する`}
         </button>
       </form>
     </div>
