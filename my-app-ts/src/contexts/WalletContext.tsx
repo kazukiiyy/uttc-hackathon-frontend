@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { BrowserProvider, formatEther, parseEther } from 'ethers';
+import { BrowserProvider, Contract, formatEther, parseEther } from 'ethers';
+import { MARKETPLACE_CONTRACT_ADDRESS, MARKETPLACE_ABI, jpyToWei, jpyToEthDisplay } from '../config/contract';
 
 // サポートするネットワーク
 const NETWORKS = {
@@ -35,6 +36,23 @@ const NETWORKS = {
 
 type NetworkKey = keyof typeof NETWORKS;
 
+// 出品用パラメータ
+interface ListItemParams {
+  title: string;
+  priceJpy: number;
+  explanation: string;
+  imageUrl: string;
+  uid: string;
+  category: string;
+  tokenURI: string;
+}
+
+// 購入用パラメータ
+interface BuyItemParams {
+  itemId: number;
+  priceWei: bigint;
+}
+
 interface WalletContextType {
   address: string | null;
   balance: string | null;
@@ -48,6 +66,14 @@ interface WalletContextType {
   disconnect: () => void;
   switchNetwork: (network: NetworkKey) => Promise<void>;
   sendTransaction: (to: string, amountEth: string) => Promise<string>;
+  // スマートコントラクト操作
+  listItem: (params: ListItemParams) => Promise<{ txHash: string; itemId: number }>;
+  buyItem: (params: BuyItemParams) => Promise<string>;
+  confirmReceipt: (itemId: number) => Promise<string>;
+  cancelListing: (itemId: number) => Promise<string>;
+  // ユーティリティ
+  jpyToEthDisplay: (jpyPrice: number) => string;
+  jpyToWei: (jpyPrice: number) => bigint;
   availableNetworks: typeof NETWORKS;
 }
 
@@ -66,7 +92,6 @@ const getNetworkInfo = (chainId: string | null) => {
     return { name: network.chainName, symbol: network.symbol };
   }
 
-  // 未知のネットワーク
   return { name: `Unknown (${chainId})`, symbol: '???' };
 };
 
@@ -91,6 +116,20 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       console.error('残高取得エラー:', error);
     }
   }, []);
+
+  // コントラクトインスタンスを取得
+  const getContract = async (withSigner = false) => {
+    if (!window.ethereum) throw new Error('MetaMaskがインストールされていません');
+
+    const provider = new BrowserProvider(window.ethereum);
+
+    if (withSigner) {
+      const signer = await provider.getSigner();
+      return new Contract(MARKETPLACE_CONTRACT_ADDRESS, MARKETPLACE_ABI, signer);
+    }
+
+    return new Contract(MARKETPLACE_CONTRACT_ADDRESS, MARKETPLACE_ABI, provider);
+  };
 
   // ウォレット接続
   const connect = async () => {
@@ -150,7 +189,6 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
         params: [{ chainId: networkConfig.chainId }],
       });
     } catch (error: any) {
-      // チェーンが追加されていない場合は追加
       if (error.code === 4902) {
         try {
           await window.ethereum.request({
@@ -190,7 +228,94 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       value: parseEther(amountEth),
     });
 
-    // トランザクション送信後、残高を更新
+    await tx.wait();
+    await fetchBalance(address);
+
+    return tx.hash;
+  };
+
+  // ==========================================
+  // スマートコントラクト操作
+  // ==========================================
+
+  // 商品を出品
+  const listItem = async (params: ListItemParams): Promise<{ txHash: string; itemId: number }> => {
+    if (!address) throw new Error('ウォレットが接続されていません');
+    if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
+
+    const contract = await getContract(true);
+    const priceWei = jpyToWei(params.priceJpy);
+
+    const tx = await contract.listItem(
+      params.title,
+      priceWei,
+      params.explanation,
+      params.imageUrl,
+      params.uid,
+      params.category,
+      params.tokenURI
+    );
+
+    const receipt = await tx.wait();
+
+    // イベントからitemIdを取得
+    let itemId = 0;
+    for (const log of receipt.logs) {
+      try {
+        const parsed = contract.interface.parseLog({
+          topics: log.topics as string[],
+          data: log.data,
+        });
+        if (parsed?.name === 'ItemListed') {
+          itemId = Number(parsed.args.itemId);
+          break;
+        }
+      } catch {
+        // パースできないログはスキップ
+      }
+    }
+
+    await fetchBalance(address);
+    return { txHash: tx.hash, itemId };
+  };
+
+  // 商品を購入
+  const buyItem = async (params: BuyItemParams): Promise<string> => {
+    if (!address) throw new Error('ウォレットが接続されていません');
+    if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
+
+    const contract = await getContract(true);
+
+    const tx = await contract.buyItem(params.itemId, {
+      value: params.priceWei,
+    });
+
+    await tx.wait();
+    await fetchBalance(address);
+
+    return tx.hash;
+  };
+
+  // 受け取り確認
+  const confirmReceipt = async (itemId: number): Promise<string> => {
+    if (!address) throw new Error('ウォレットが接続されていません');
+    if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
+
+    const contract = await getContract(true);
+    const tx = await contract.confirmReceipt(itemId);
+    await tx.wait();
+    await fetchBalance(address);
+
+    return tx.hash;
+  };
+
+  // 出品キャンセル
+  const cancelListing = async (itemId: number): Promise<string> => {
+    if (!address) throw new Error('ウォレットが接続されていません');
+    if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
+
+    const contract = await getContract(true);
+    const tx = await contract.cancelListing(itemId);
     await tx.wait();
     await fetchBalance(address);
 
@@ -268,6 +393,14 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       disconnect,
       switchNetwork,
       sendTransaction,
+      // スマートコントラクト操作
+      listItem,
+      buyItem,
+      confirmReceipt,
+      cancelListing,
+      // ユーティリティ
+      jpyToEthDisplay,
+      jpyToWei,
       availableNetworks: NETWORKS,
     }}>
       {children}

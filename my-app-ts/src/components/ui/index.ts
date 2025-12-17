@@ -3,3 +3,4 @@ export { Input } from './Input';
 export { Select } from './Select';
 export { Textarea } from './Textarea';
 export { Loading } from './Loading';
+export { ShareButton } from './ShareButton';

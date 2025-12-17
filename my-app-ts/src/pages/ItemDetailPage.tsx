@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { itemsApi } from '../api/endpoints/items';
 import { likesApi } from '../api/endpoints/likes';
-import { paymentApi, PaymentOrder } from '../api/endpoints/payment';
 import { Item, FirestoreUserProfile } from '../types';
 import { useAuth, useWallet } from '../contexts';
 import { getUserProfile } from '../api/firestore/userProfile';
 import { getFullImageUrl } from '../utils/imageUrl';
+import { ShareButton } from '../components/ui';
 import './ItemDetailPage.css';
 
 const formatDate = (dateString: string) => {
@@ -32,7 +32,9 @@ export const ItemDetailPage = () => {
     isSepoliaNetwork,
     connect,
     switchNetwork,
-    sendTransaction,
+    buyItem,
+    jpyToWei,
+    jpyToEthDisplay,
   } = useWallet();
 
   const [item, setItem] = useState<Item | null>(null);
@@ -48,7 +50,6 @@ export const ItemDetailPage = () => {
   // 購入モーダル用
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [purchaseStep, setPurchaseStep] = useState<PurchaseStep>('select');
-  const [paymentOrder, setPaymentOrder] = useState<PaymentOrder | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
@@ -132,10 +133,9 @@ export const ItemDetailPage = () => {
     setPurchaseStep('select');
     setPurchaseError(null);
     setTxHash(null);
-    setPaymentOrder(null);
   };
 
-  // 現金で購入
+  // 現金で購入（既存のバックエンドAPI経由）
   const handleCashPurchase = async () => {
     if (!item || !user) return;
 
@@ -154,29 +154,35 @@ export const ItemDetailPage = () => {
     }
   };
 
-  // Sepoliaで購入
+  // スマートコントラクト経由で購入
   const handleCryptoPurchase = async () => {
     if (!item || !user || !address) return;
+
+    // chain_item_idが必要（スマートコントラクト上のID）
+    // 既存のDBのidではなく、chain_item_idを使用
+    const chainItemId = (item as any).chain_item_id;
+    if (!chainItemId) {
+      setPurchaseError('この商品はブロックチェーン上に登録されていません');
+      setPurchaseStep('error');
+      return;
+    }
 
     setIsPurchasing(true);
     setPurchaseStep('processing');
     setPurchaseError(null);
 
     try {
-      // 1. 支払い注文を作成
-      const order = await paymentApi.createOrder(item.id.toString(), address);
-      setPaymentOrder(order);
+      // スマートコントラクトのbuyItemを呼び出し
+      const priceWei = jpyToWei(item.price);
+      const hash = await buyItem({
+        itemId: chainItemId,
+        priceWei,
+      });
 
-      // 2. トランザクションを送信
-      const hash = await sendTransaction(order.payment_addr, order.amount_eth);
       setTxHash(hash);
       setPurchaseStep('confirming');
 
-      // 3. 支払いを確認
-      await paymentApi.confirmPayment(order.order_id, order.product_id, hash);
-
-      // 4. バックエンドで購入を完了
-      await itemsApi.purchase(item.id, user.uid);
+      // トランザクション完了後、UIを更新
       setItem({ ...item, ifPurchased: true });
       setPurchaseStep('success');
     } catch (err: any) {
@@ -232,6 +238,9 @@ export const ItemDetailPage = () => {
     }
   };
 
+  // ETH価格を表示用に計算
+  const ethPrice = jpyToEthDisplay(item.price);
+
   return (
     <div className="item-detail-page">
       <header className="detail-header">
@@ -282,18 +291,29 @@ export const ItemDetailPage = () => {
           <h1 className="detail-title">{item.title}</h1>
           <div className="price-card">
             <div className="price-card-row">
-              <p className="detail-price">
-                <span className="price-currency">¥</span>
-                {item.price.toLocaleString()}
-              </p>
-              <button
-                className={`like-button ${isLiked ? 'liked' : ''}`}
-                onClick={handleLikeToggle}
-                disabled={!user || isLikeLoading}
-              >
-                <span className="like-icon">{isLiked ? '♥' : '♡'}</span>
-                <span className="like-count">{likeCount}</span>
-              </button>
+              <div className="price-info">
+                <p className="detail-price">
+                  <span className="price-currency">¥</span>
+                  {item.price.toLocaleString()}
+                </p>
+                <p className="eth-price">≈ {ethPrice} ETH</p>
+              </div>
+              <div className="price-card-actions">
+                <button
+                  className={`like-button ${isLiked ? 'liked' : ''}`}
+                  onClick={handleLikeToggle}
+                  disabled={!user || isLikeLoading}
+                >
+                  <span className="like-icon">{isLiked ? '♥' : '♡'}</span>
+                  <span className="like-count">{likeCount}</span>
+                </button>
+                <ShareButton
+                  title={item.title}
+                  text={`¥${item.price.toLocaleString()} - ${item.explanation.slice(0, 50)}...`}
+                  url={window.location.href}
+                  className="share-button-detail"
+                />
+              </div>
             </div>
           </div>
 
@@ -400,9 +420,18 @@ export const ItemDetailPage = () => {
                         ? 'Sepoliaに切替'
                         : 'Sepolia ETHで購入'}
                     </span>
-                    <span className="payment-price">0.001 ETH (Demo)</span>
+                    <span className="payment-price">{ethPrice} ETH</span>
                   </button>
                 </div>
+
+                {isConnected && (
+                  <p className="wallet-info">
+                    接続中: {address?.slice(0, 6)}...{address?.slice(-4)}
+                    {!isSepoliaNetwork && (
+                      <span className="network-warning"> ⚠️ Sepoliaに切り替えてください</span>
+                    )}
+                  </p>
+                )}
 
                 <button className="modal-close-btn" onClick={closePurchaseModal}>
                   キャンセル
@@ -415,6 +444,7 @@ export const ItemDetailPage = () => {
                 <div className="spinner"></div>
                 <h2>処理中...</h2>
                 <p>トランザクションを送信しています</p>
+                <p className="modal-hint">MetaMaskで確認してください</p>
               </div>
             )}
 
@@ -451,6 +481,14 @@ export const ItemDetailPage = () => {
                     Etherscanで確認 →
                   </a>
                 )}
+                <div className="success-share">
+                  <ShareButton
+                    title={`「${item.title}」を購入しました！`}
+                    text={`¥${item.price.toLocaleString()}の商品をゲット！`}
+                    url={window.location.href}
+                    className="share-button-success"
+                  />
+                </div>
                 <button className="modal-close-btn" onClick={closePurchaseModal}>
                   閉じる
                 </button>

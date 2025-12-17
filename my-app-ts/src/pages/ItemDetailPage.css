@@ -1,6 +1,6 @@
 .item-detail-page {
   min-height: 100%;
-  background-color: #f5f5f5;
+  background: transparent;
 }
 
 .detail-header {
@@ -133,6 +133,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.price-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .detail-price {
@@ -523,6 +529,22 @@
 
 .tx-link:hover {
   text-decoration: underline;
+}
+
+/* 購入完了時のシェアボタン */
+.success-share {
+  margin: 16px 0;
+}
+
+.share-button-success .share-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 12px 24px;
+  font-size: 1rem;
+}
+
+.share-button-success .share-button:hover {
+  opacity: 0.9;
 }
 
 /* スピナー */

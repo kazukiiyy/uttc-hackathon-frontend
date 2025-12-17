@@ -4,6 +4,7 @@ import { useAuth, useWallet } from '../contexts';
 import { getUserProfile } from '../api/firestore/userProfile';
 import { messagesApi, Conversation } from '../api/endpoints/messages';
 import { itemsApi, PurchasedItem } from '../api/endpoints/items';
+import { likesApi } from '../api/endpoints/likes';
 import { FirestoreUserProfile, Item } from '../types';
 import { getFullImageUrl } from '../utils/imageUrl';
 import { Button } from '../components/ui';
@@ -36,6 +37,8 @@ export const MyPage = () => {
   const [isLoadingListed, setIsLoadingListed] = useState(true);
   const [purchasedItems, setPurchasedItems] = useState<PurchasedItem[]>([]);
   const [isLoadingPurchased, setIsLoadingPurchased] = useState(true);
+  const [likedItems, setLikedItems] = useState<Item[]>([]);
+  const [isLoadingLiked, setIsLoadingLiked] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -115,6 +118,27 @@ export const MyPage = () => {
     };
 
     fetchPurchasedItems();
+  }, [user]);
+
+  // いいねした商品を取得
+  useEffect(() => {
+    const fetchLikedItems = async () => {
+      if (!user) return;
+
+      try {
+        const { item_ids } = await likesApi.getUserLikes(user.uid);
+        if (item_ids && item_ids.length > 0) {
+          const items = await itemsApi.getByIds(item_ids);
+          setLikedItems(items);
+        }
+      } catch (err) {
+        console.error('Failed to fetch liked items:', err);
+      } finally {
+        setIsLoadingLiked(false);
+      }
+    };
+
+    fetchLikedItems();
   }, [user]);
 
   const handleSignOut = async () => {
@@ -292,6 +316,40 @@ export const MyPage = () => {
                   <div className="item-card-info">
                     <p className="item-card-title">{item.title}</p>
                     <p className="item-card-price">¥{item.price.toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="my-page-section">
+          <h3>♥ いいねした商品</h3>
+          {isLoadingLiked ? (
+            <p className="placeholder-text">読み込み中...</p>
+          ) : likedItems.length === 0 ? (
+            <p className="placeholder-text">いいねした商品がありません</p>
+          ) : (
+            <div className="items-grid-horizontal">
+              {likedItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="item-card-small"
+                  onClick={() => handleItemClick(item.id)}
+                >
+                  {item.image_urls && item.image_urls.length > 0 ? (
+                    <img
+                      src={getFullImageUrl(item.image_urls[0])}
+                      alt={item.title}
+                      className="item-card-image"
+                    />
+                  ) : (
+                    <div className="item-card-image-placeholder">No Image</div>
+                  )}
+                  <div className="item-card-info">
+                    <p className="item-card-title">{item.title}</p>
+                    <p className="item-card-price">¥{item.price.toLocaleString()}</p>
+                    {item.ifPurchased && <span className="sold-badge-small">売切</span>}
                   </div>
                 </div>
               ))}

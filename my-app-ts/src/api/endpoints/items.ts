@@ -61,4 +61,13 @@ export const itemsApi = {
   getLatest: (limit: number = 10) => {
     return apiClient.get<Item[]>(`/getItems/latest?limit=${limit}`);
   },
+
+  getByIds: async (ids: number[]): Promise<Item[]> => {
+    if (ids.length === 0) return [];
+    // 個別に取得して結合
+    const items = await Promise.all(
+      ids.map(id => apiClient.get<Item>(`/getItems/${id}`).catch(() => null))
+    );
+    return items.filter((item): item is Item => item !== null);
+  },
 };
