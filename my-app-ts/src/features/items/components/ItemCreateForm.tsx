@@ -80,15 +80,30 @@ export const ItemCreateForm = () => {
 
   // ブロックチェーン経由での出品
   const handleBlockchainSubmit = async (imageUrl: string) => {
-    if (!user || !address) return;
+    if (!user || !address) {
+      setListingError('ユーザーまたはウォレットが接続されていません');
+      setListingStep('error');
+      return;
+    }
+
+    if (!imageUrl) {
+      setListingError('画像URLが取得できませんでした');
+      setListingStep('error');
+      return;
+    }
 
     setListingStep('processing');
     setListingError(null);
 
     try {
+      const priceInt = parseInt(price);
+      if (isNaN(priceInt) || priceInt <= 0) {
+        throw new Error('価格が無効です');
+      }
+
       const result = await listItem({
         title,
-        priceJpy: parseInt(price),
+        priceJpy: priceInt,
         explanation,
         imageUrl,
         uid: user.uid,
@@ -99,11 +114,26 @@ export const ItemCreateForm = () => {
       setTxHash(result.txHash);
       setListingStep('confirming');
 
-      // トランザクション完了
+      // トランザクション完了を待つ（tx.wait()はlistItem内で実行済み）
       setListingStep('success');
     } catch (err: any) {
       console.error('ブロックチェーン出品エラー:', err);
-      setListingError(err.message || '出品に失敗しました');
+      
+      // エラーメッセージを詳細に設定
+      let errorMessage = '出品に失敗しました';
+      if (err.message) {
+        if (err.message.includes('user rejected') || err.message.includes('User denied')) {
+          errorMessage = 'トランザクションがキャンセルされました';
+        } else if (err.message.includes('insufficient funds')) {
+          errorMessage = '残高が不足しています';
+        } else if (err.message.includes('network')) {
+          errorMessage = 'ネットワークエラーが発生しました';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setListingError(errorMessage);
       setListingStep('error');
     }
   };
@@ -125,37 +155,40 @@ export const ItemCreateForm = () => {
 
     try {
       if (useBlockchain) {
-        // ブロックチェーン出品の場合、まず画像をアップロード
-        const formData = new FormData();
-        formData.append('image', image);
-        formData.append('title', title);
-        formData.append('price', price);
-        formData.append('explanation', explanation);
-        formData.append('category', category);
-        formData.append('sellerUid', user.uid);
+        // ブロックチェーン出品の場合、画像のみをアップロードしてURLを取得
+        // 商品データはonchainイベントからDBに挿入される
+        let imageUrl = '';
+        
+        try {
+          // 画像のみをアップロードしてURLを取得
+          const response = await itemsApi.uploadImage(image);
+          imageUrl = response?.image_url || response?.image_urls?.[0] || '';
+          
+          if (!imageUrl) {
+            throw new Error('画像URLの取得に失敗しました');
+          }
+        } catch (error: any) {
+          console.error('画像アップロードエラー:', error);
+          setListingError(`画像のアップロードに失敗しました: ${error.message || '不明なエラー'}`);
+          setListingStep('error');
+          return;
+        }
 
-        // 画像アップロードのみ実行してURLを取得
-        const response = await itemsApi.create({
-          title,
-          price,
-          explanation,
-          category,
-          image,
-          sellerUid: user.uid,
-        });
-
-        // APIから画像URLを取得してブロックチェーンに出品
-        // 注: 実際にはAPIを修正して画像URLのみ返すエンドポイントが必要
-        // ここでは仮のURLを使用
-        const imageUrl = response?.image_urls?.[0] || '';
+        // ブロックチェーンに出品（イベントからDBに挿入される）
         await handleBlockchainSubmit(imageUrl);
       } else {
         await handleTraditionalSubmit();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('商品登録エラー:', error);
       if (!useBlockchain) {
         alert('商品データの送信中にエラーが発生しました。');
+      } else {
+        // onchain出品の場合、エラーはhandleBlockchainSubmitで処理される
+        if (!listingError) {
+          setListingError(error.message || '出品に失敗しました');
+          setListingStep('error');
+        }
       }
     } finally {
       setIsSubmitting(false);

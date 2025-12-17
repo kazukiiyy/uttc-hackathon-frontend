@@ -284,16 +284,36 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
     if (!address) throw new Error('ウォレットが接続されていません');
     if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
 
-    const contract = await getContract(true);
+    try {
+      const contract = await getContract(true);
 
-    const tx = await contract.buyItem(params.itemId, {
-      value: params.priceWei,
-    });
+      const tx = await contract.buyItem(params.itemId, {
+        value: params.priceWei,
+      });
 
-    await tx.wait();
-    await fetchBalance(address);
+      const receipt = await tx.wait();
+      
+      // トランザクションが失敗した場合
+      if (!receipt) {
+        throw new Error('トランザクションが失敗しました');
+      }
 
-    return tx.hash;
+      await fetchBalance(address);
+
+      return tx.hash;
+    } catch (error: any) {
+      // エラーメッセージを改善
+      if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+        throw new Error('トランザクションがキャンセルされました');
+      }
+      if (error.reason) {
+        throw new Error(error.reason);
+      }
+      if (error.message) {
+        throw error;
+      }
+      throw new Error('購入処理中にエラーが発生しました');
+    }
   };
 
   // 受け取り確認

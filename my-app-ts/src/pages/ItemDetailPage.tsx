@@ -160,7 +160,7 @@ export const ItemDetailPage = () => {
 
     // chain_item_idが必要（スマートコントラクト上のID）
     // 既存のDBのidではなく、chain_item_idを使用
-    const chainItemId = (item as any).chain_item_id;
+    const chainItemId = item.chain_item_id;
     if (!chainItemId) {
       setPurchaseError('この商品はブロックチェーン上に登録されていません');
       setPurchaseStep('error');
@@ -174,6 +174,9 @@ export const ItemDetailPage = () => {
     try {
       // スマートコントラクトのbuyItemを呼び出し
       const priceWei = jpyToWei(item.price);
+      
+      // トランザクション送信
+      setPurchaseStep('processing');
       const hash = await buyItem({
         itemId: chainItemId,
         priceWei,
@@ -186,8 +189,25 @@ export const ItemDetailPage = () => {
       setItem({ ...item, ifPurchased: true });
       setPurchaseStep('success');
     } catch (err: any) {
-      console.error(err);
-      setPurchaseError(err.message || '購入に失敗しました');
+      console.error('購入エラー:', err);
+      
+      // エラーメッセージを詳細に設定
+      let errorMessage = '購入に失敗しました';
+      if (err.message) {
+        if (err.message.includes('insufficient funds') || err.message.includes('Insufficient')) {
+          errorMessage = '残高が不足しています';
+        } else if (err.message.includes('user rejected') || err.message.includes('User denied')) {
+          errorMessage = 'トランザクションがキャンセルされました';
+        } else if (err.message.includes('Item is not available')) {
+          errorMessage = 'この商品は既に購入済みです';
+        } else if (err.message.includes('Seller cannot buy')) {
+          errorMessage = '自分の商品は購入できません';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setPurchaseError(errorMessage);
       setPurchaseStep('error');
     } finally {
       setIsPurchasing(false);

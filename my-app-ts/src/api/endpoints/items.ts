@@ -70,4 +70,11 @@ export const itemsApi = {
     );
     return items.filter((item): item is Item => item !== null);
   },
+
+  // 画像のみをアップロードしてURLを取得（onchain出品用）
+  uploadImage: (image: File) => {
+    const formData = new FormData();
+    formData.append('image', image);
+    return apiClient.postFormData<{ image_url: string; image_urls: string[] }>('/uploadImage', formData);
+  },
 };
