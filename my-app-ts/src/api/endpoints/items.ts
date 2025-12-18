@@ -29,7 +29,9 @@ export const itemsApi = {
   },
 
   getAll: () => {
-    return apiClient.get<Item[]>('/getItems');
+    // バックエンドではcategoryまたはuidが必要なため、全件取得はgetLatestを使用
+    // または空の配列を返す（実際の使用箇所を確認して適切に修正）
+    return apiClient.get<Item[]>('/getItems/latest?limit=100');
   },
 
   getById: (id: string) => {
@@ -52,9 +54,16 @@ export const itemsApi = {
     });
   },
 
-  getPurchasedItems: (buyerUid: string) => {
+  getPurchasedItems: (buyerUid: string, buyerAddress?: string) => {
+    const params = new URLSearchParams();
+    if (buyerUid) {
+      params.append('buyer_uid', buyerUid);
+    }
+    if (buyerAddress) {
+      params.append('buyer_address', buyerAddress);
+    }
     return apiClient.get<PurchasedItem[]>(
-      `/purchases?buyer_uid=${encodeURIComponent(buyerUid)}`
+      `/purchases?${params.toString()}`
     );
   },
 

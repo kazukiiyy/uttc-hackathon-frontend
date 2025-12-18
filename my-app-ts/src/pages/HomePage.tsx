@@ -87,10 +87,6 @@ export const HomePage = () => {
 
   return (
     <div className="home-page">
-      <header className="home-header">
-        <h1>フリマアプリ</h1>
-      </header>
-
       <main className="home-main">
         <div className="welcome-card">
           <div className="welcome-card-content">
@@ -102,7 +98,7 @@ export const HomePage = () => {
               <span className="action-icon">🔍</span>
               <span>探す</span>
             </button>
-            <button className="welcome-action-btn" onClick={() => navigate('/create')}>
+            <button className="welcome-action-btn" onClick={() => navigate('/sell')}>
               <span className="action-icon">📦</span>
               <span>出品</span>
             </button>

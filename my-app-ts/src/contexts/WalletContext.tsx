@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { BrowserProvider, Contract, formatEther, parseEther } from 'ethers';
+import { BrowserProvider, Contract, formatEther, parseEther, getAddress } from 'ethers';
 import { MARKETPLACE_CONTRACT_ADDRESS, MARKETPLACE_ABI, jpyToWei, jpyToEthDisplay } from '../config/contract';
 
 // サポートするネットワーク
@@ -67,6 +67,7 @@ interface WalletContextType {
   switchNetwork: (network: NetworkKey) => Promise<void>;
   sendTransaction: (to: string, amountEth: string) => Promise<string>;
   // スマートコントラクト操作
+  getItem: (itemId: number) => Promise<any>;
   listItem: (params: ListItemParams) => Promise<{ txHash: string; itemId: number }>;
   buyItem: (params: BuyItemParams) => Promise<string>;
   confirmReceipt: (itemId: number) => Promise<string>;
@@ -105,246 +106,212 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
   const { name: networkName, symbol: networkSymbol } = getNetworkInfo(chainId);
   const isSepoliaNetwork = chainId?.toLowerCase() === NETWORKS.sepolia.chainId.toLowerCase();
 
-  // 残高を取得
+  const checkMetaMask = (): boolean => {
+    return typeof window !== 'undefined' && !!window.ethereum?.isMetaMask;
+  };
+
   const fetchBalance = useCallback(async (addr: string) => {
-    if (!window.ethereum) return;
+    if (!checkMetaMask()) return;
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const bal = await provider.getBalance(addr);
-      setBalance(formatEther(bal));
+      const provider = new BrowserProvider(window.ethereum!);
+      setBalance(formatEther(await provider.getBalance(addr)));
     } catch (error) {
       console.error('残高取得エラー:', error);
     }
   }, []);
 
-  // コントラクトインスタンスを取得
   const getContract = async (withSigner = false) => {
-    if (!window.ethereum) throw new Error('MetaMaskがインストールされていません');
-
-    const provider = new BrowserProvider(window.ethereum);
-
+    if (!checkMetaMask()) throw new Error('MetaMaskがインストールされていません');
+    const provider = new BrowserProvider(window.ethereum!);
     if (withSigner) {
-      const signer = await provider.getSigner();
-      return new Contract(MARKETPLACE_CONTRACT_ADDRESS, MARKETPLACE_ABI, signer);
+      return new Contract(MARKETPLACE_CONTRACT_ADDRESS, MARKETPLACE_ABI, await provider.getSigner());
     }
-
     return new Contract(MARKETPLACE_CONTRACT_ADDRESS, MARKETPLACE_ABI, provider);
   };
 
-  // ウォレット接続
   const connect = async () => {
-    if (!window.ethereum) {
+    if (!checkMetaMask()) {
       alert('MetaMaskがインストールされていません。\nhttps://metamask.io からインストールしてください。');
       return;
     }
 
     setIsConnecting(true);
     try {
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts'
-      }) as string[];
-
-      if (accounts.length > 0) {
-        const addr = accounts[0];
-        setAddress(addr);
-        await fetchBalance(addr);
-
-        const chainIdHex = await window.ethereum.request({
-          method: 'eth_chainId'
-        }) as string;
-        setChainId(chainIdHex);
-
-        localStorage.setItem('walletConnected', 'true');
-      } else {
+      const accounts = await window.ethereum!.request({ method: 'eth_requestAccounts' }) as string[];
+      if (!accounts?.length) {
         alert('MetaMaskでアカウントを選択して接続を許可してください');
+        return;
       }
+
+      const addr = accounts[0];
+      setAddress(addr);
+      await fetchBalance(addr);
+      const chainIdHex = await window.ethereum!.request({ method: 'eth_chainId' }) as string;
+      setChainId(chainIdHex);
+      localStorage.setItem('walletConnected', 'true');
     } catch (error: any) {
       if (error.code === 4001) {
         // ユーザーが拒否
+      } else if (error.code === -32002) {
+        alert('既に接続リクエストが進行中です。\nMetaMaskを確認してください。');
       } else {
         console.error('ウォレット接続エラー:', error);
+        alert(`接続エラー: ${error.message || '不明なエラー'}`);
       }
     } finally {
       setIsConnecting(false);
     }
   };
 
-  // 切断
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     setAddress(null);
     setBalance(null);
     setChainId(null);
     localStorage.removeItem('walletConnected');
-  };
+  }, []);
 
-  // ネットワーク切り替え
   const switchNetwork = async (network: NetworkKey) => {
-    if (!window.ethereum) return;
-
-    const networkConfig = NETWORKS[network];
-
+    if (!checkMetaMask()) return;
+    const config = NETWORKS[network];
     try {
-      await window.ethereum.request({
+      await window.ethereum!.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: networkConfig.chainId }],
+        params: [{ chainId: config.chainId }],
       });
     } catch (error: any) {
       if (error.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: networkConfig.chainId,
-              chainName: networkConfig.chainName,
-              nativeCurrency: {
-                name: networkConfig.symbol,
-                symbol: networkConfig.symbol,
-                decimals: 18,
-              },
-              rpcUrls: networkConfig.rpcUrls,
-              blockExplorerUrls: networkConfig.blockExplorerUrls,
-            }],
-          });
-        } catch (addError) {
-          console.error('ネットワーク追加エラー:', addError);
-        }
+        await window.ethereum!.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: config.chainId,
+            chainName: config.chainName,
+            nativeCurrency: { name: config.symbol, symbol: config.symbol, decimals: 18 },
+            rpcUrls: config.rpcUrls,
+            blockExplorerUrls: config.blockExplorerUrls,
+          }],
+        });
       } else {
         console.error('ネットワーク切り替えエラー:', error);
       }
     }
   };
 
-  // ETH送金
   const sendTransaction = async (to: string, amountEth: string): Promise<string> => {
-    if (!window.ethereum || !address) {
-      throw new Error('ウォレットが接続されていません');
-    }
-
-    const provider = new BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-
-    const tx = await signer.sendTransaction({
-      to,
-      value: parseEther(amountEth),
-    });
-
+    if (!checkMetaMask() || !address) throw new Error('ウォレットが接続されていません');
+    const provider = new BrowserProvider(window.ethereum!);
+    const tx = await (await provider.getSigner()).sendTransaction({ to, value: parseEther(amountEth) });
     await tx.wait();
     await fetchBalance(address);
-
     return tx.hash;
   };
 
-  // ==========================================
-  // スマートコントラクト操作
-  // ==========================================
-
-  // 商品を出品
   const listItem = async (params: ListItemParams): Promise<{ txHash: string; itemId: number }> => {
     if (!address) throw new Error('ウォレットが接続されていません');
     if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
 
     const contract = await getContract(true);
-    const priceWei = jpyToWei(params.priceJpy);
-
-    const tx = await contract.listItem(
-      params.title,
-      priceWei,
-      params.explanation,
-      params.imageUrl,
-      params.uid,
-      params.category,
-      params.tokenURI
-    );
-
+    const tx = await contract.listItem(params.title, jpyToWei(params.priceJpy), params.explanation, params.imageUrl, params.uid, params.category, params.tokenURI);
     const receipt = await tx.wait();
 
-    // イベントからitemIdを取得
     let itemId = 0;
     for (const log of receipt.logs) {
       try {
-        const parsed = contract.interface.parseLog({
-          topics: log.topics as string[],
-          data: log.data,
-        });
+        const parsed = contract.interface.parseLog({ topics: log.topics as string[], data: log.data });
         if (parsed?.name === 'ItemListed') {
           itemId = Number(parsed.args.itemId);
           break;
         }
-      } catch {
-        // パースできないログはスキップ
-      }
+      } catch {}
     }
 
     await fetchBalance(address);
     return { txHash: tx.hash, itemId };
   };
 
-  // 商品を購入
+  const getItem = async (itemId: number) => {
+    if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
+    const contract = await getContract(false);
+    return await contract.getItem(itemId);
+  };
+
   const buyItem = async (params: BuyItemParams): Promise<string> => {
     if (!address) throw new Error('ウォレットが接続されていません');
     if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
 
     try {
       const contract = await getContract(true);
-
-      const tx = await contract.buyItem(params.itemId, {
-        value: params.priceWei,
-      });
-
-      const receipt = await tx.wait();
       
-      // トランザクションが失敗した場合
-      if (!receipt) {
-        throw new Error('トランザクションが失敗しました');
-      }
-
+      // コントラクト側で出品者チェックが行われるため、ここではチェックしない
+      // エラーメッセージを適切に処理する
+      const tx = await contract.buyItem(params.itemId, { value: params.priceWei });
+      await tx.wait();
       await fetchBalance(address);
-
       return tx.hash;
     } catch (error: any) {
-      // エラーメッセージを改善
+      // ユーザーがトランザクションを拒否した場合
       if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
         throw new Error('トランザクションがキャンセルされました');
       }
+      
+      // MetaMaskのエラーメッセージを取得
+      // ethers.js v6では、エラーメッセージが複数の場所に存在する可能性がある
+      let errorMessage = '購入処理中にエラーが発生しました';
+      
+      // エラーメッセージの取得を試みる（複数のパターンをチェック）
       if (error.reason) {
-        throw new Error(error.reason);
+        errorMessage = error.reason;
+      } else if (error.shortMessage) {
+        errorMessage = error.shortMessage;
+      } else if (error.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error.message) {
+        // MetaMaskのエラーメッセージを抽出
+        // "execution reverted: Seller cannot buy their own item." のような形式
+        const match = error.message.match(/execution reverted:?\s*(.+?)(?:\.|$)/i);
+        if (match && match[1]) {
+          errorMessage = match[1].trim();
+        } else if (!error.message.includes('missing revert data')) {
+          errorMessage = error.message;
+        }
       }
-      if (error.message) {
-        throw error;
+      
+      // よくあるエラーメッセージを日本語化
+      if (errorMessage.includes('Seller cannot buy their own item')) {
+        errorMessage = '出品者は自分の商品を購入できません';
+      } else if (errorMessage.includes('Insufficient payment') || errorMessage.includes('insufficient funds')) {
+        errorMessage = '残高が不足しています';
+      } else if (errorMessage.includes('Item is not available for purchase')) {
+        errorMessage = 'この商品は購入できません（既に購入済み、キャンセル済み、または完了済みです）';
+      } else if (errorMessage.includes('Item is not available') || errorMessage.includes('Item does not exist')) {
+        errorMessage = 'この商品は購入できません（既に購入済みまたは存在しません）';
       }
-      throw new Error('購入処理中にエラーが発生しました');
+      
+      throw new Error(errorMessage);
     }
   };
 
-  // 受け取り確認
   const confirmReceipt = async (itemId: number): Promise<string> => {
     if (!address) throw new Error('ウォレットが接続されていません');
     if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
-
     const contract = await getContract(true);
     const tx = await contract.confirmReceipt(itemId);
     await tx.wait();
     await fetchBalance(address);
-
     return tx.hash;
   };
 
-  // 出品キャンセル
   const cancelListing = async (itemId: number): Promise<string> => {
     if (!address) throw new Error('ウォレットが接続されていません');
     if (!isSepoliaNetwork) throw new Error('Sepoliaネットワークに切り替えてください');
-
     const contract = await getContract(true);
     const tx = await contract.cancelListing(itemId);
     await tx.wait();
     await fetchBalance(address);
-
     return tx.hash;
   };
 
-  // アカウント変更を監視
   useEffect(() => {
-    if (!window.ethereum) return;
+    if (!checkMetaMask()) return;
 
     const handleAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
@@ -357,45 +324,36 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
 
     const handleChainChanged = (newChainId: string) => {
       setChainId(newChainId);
-      if (address) {
-        fetchBalance(address);
-      }
+      if (address) fetchBalance(address);
     };
 
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
+    window.ethereum!.on('accountsChanged', handleAccountsChanged);
+    window.ethereum!.on('chainChanged', handleChainChanged);
 
     return () => {
       window.ethereum?.removeListener('accountsChanged', handleAccountsChanged);
       window.ethereum?.removeListener('chainChanged', handleChainChanged);
     };
-  }, [address, fetchBalance]);
+  }, [address, fetchBalance, disconnect]);
 
-  // 自動再接続
   useEffect(() => {
     const autoConnect = async () => {
-      if (localStorage.getItem('walletConnected') === 'true' && window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({
-            method: 'eth_accounts'
-          }) as string[];
-
-          if (accounts.length > 0) {
-            const addr = accounts[0];
-            setAddress(addr);
-            await fetchBalance(addr);
-
-            const chainIdHex = await window.ethereum.request({
-              method: 'eth_chainId'
-            }) as string;
-            setChainId(chainIdHex);
-          }
-        } catch (error) {
-          console.error('自動接続エラー:', error);
+      if (localStorage.getItem('walletConnected') !== 'true' || !checkMetaMask()) return;
+      try {
+        const accounts = await window.ethereum!.request({ method: 'eth_accounts' }) as string[];
+        if (accounts?.length) {
+          const addr = accounts[0];
+          setAddress(addr);
+          await fetchBalance(addr);
+          setChainId(await window.ethereum!.request({ method: 'eth_chainId' }) as string);
+        } else {
+          localStorage.removeItem('walletConnected');
         }
+      } catch (error) {
+        console.error('自動接続エラー:', error);
+        localStorage.removeItem('walletConnected');
       }
     };
-
     autoConnect();
   }, [fetchBalance]);
 
@@ -414,6 +372,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       switchNetwork,
       sendTransaction,
       // スマートコントラクト操作
+      getItem,
       listItem,
       buyItem,
       confirmReceipt,

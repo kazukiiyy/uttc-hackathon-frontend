@@ -94,7 +94,7 @@ export const RegisterForm = ({
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             required
-            placeholder="フリマで使用する名前"
+            placeholder="ethershopで使用する名前"
           />
         </div>
 

@@ -33,6 +33,7 @@ export const ItemDetailPage = () => {
     connect,
     switchNetwork,
     buyItem,
+    getItem: getChainItem,
     jpyToWei,
     jpyToEthDisplay,
   } = useWallet();
@@ -52,6 +53,10 @@ export const ItemDetailPage = () => {
   const [purchaseStep, setPurchaseStep] = useState<PurchaseStep>('select');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+
+  // 出品者向け：受け取り確認の状態
+  const [chainItemStatus, setChainItemStatus] = useState<number | null>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -99,6 +104,41 @@ export const ItemDetailPage = () => {
 
     fetchLikeStatus();
   }, [id, user]);
+
+  // 出品者が自分の商品を見ている場合、ブロックチェーンのステータスを取得
+  useEffect(() => {
+    const fetchChainStatus = async () => {
+      if (!item || !user || user.uid !== item.uid) {
+        setChainItemStatus(null);
+        return;
+      }
+
+      // 出品者の商品で、chain_item_idがある場合のみ
+      if (!item.chain_item_id) {
+        setChainItemStatus(null);
+        return;
+      }
+
+      // Sepoliaネットワークに接続されている場合のみ
+      if (!isSepoliaNetwork) {
+        setChainItemStatus(null);
+        return;
+      }
+
+      setIsLoadingStatus(true);
+      try {
+        const chainItem = await getChainItem(item.chain_item_id);
+        setChainItemStatus(Number(chainItem.status));
+      } catch (err) {
+        console.error('Failed to fetch chain item status:', err);
+        setChainItemStatus(null);
+      } finally {
+        setIsLoadingStatus(false);
+      }
+    };
+
+    fetchChainStatus();
+  }, [item, user, isSepoliaNetwork, getChainItem]);
 
   const handleLikeToggle = async () => {
     if (!item || !user || isLikeLoading) return;
@@ -172,6 +212,32 @@ export const ItemDetailPage = () => {
     setPurchaseError(null);
 
     try {
+      // 購入前に商品のステータスを確認（オプション）
+      if (isSepoliaNetwork) {
+        try {
+          const chainItem = await getChainItem(chainItemId);
+          const status = Number(chainItem.status);
+          // 0 = Listed, 1 = Purchased, 2 = Completed, 3 = Cancelled
+          if (status !== 0) {
+            let statusMessage = 'この商品は購入できません';
+            if (status === 1) {
+              statusMessage = 'この商品は既に購入済みです';
+            } else if (status === 2) {
+              statusMessage = 'この商品は取引が完了済みです';
+            } else if (status === 3) {
+              statusMessage = 'この商品は出品がキャンセルされています';
+            }
+            setPurchaseError(statusMessage);
+            setPurchaseStep('error');
+            setIsPurchasing(false);
+            return;
+          }
+        } catch (statusErr) {
+          // ステータス取得に失敗しても購入処理は続行（コントラクト側でチェックされる）
+          console.warn('商品ステータスの取得に失敗しましたが、購入処理を続行します:', statusErr);
+        }
+      }
+
       // スマートコントラクトのbuyItemを呼び出し
       const priceWei = jpyToWei(item.price);
       
@@ -191,19 +257,24 @@ export const ItemDetailPage = () => {
     } catch (err: any) {
       console.error('購入エラー:', err);
       
-      // エラーメッセージを詳細に設定
+      // エラーメッセージを適切に表示
       let errorMessage = '購入に失敗しました';
       if (err.message) {
-        if (err.message.includes('insufficient funds') || err.message.includes('Insufficient')) {
+        errorMessage = err.message;
+        // よくあるエラーメッセージを日本語化
+        if (err.message.includes('Seller cannot buy their own item') || 
+            err.message.includes('出品者は自分の商品を購入できません')) {
+          errorMessage = '出品者は自分の商品を購入できません';
+        } else if (err.message.includes('Insufficient payment') || 
+                   err.message.includes('insufficient funds')) {
           errorMessage = '残高が不足しています';
-        } else if (err.message.includes('user rejected') || err.message.includes('User denied')) {
+        } else if (err.message.includes('Item is not available for purchase')) {
+          errorMessage = 'この商品は購入できません（既に購入済み、キャンセル済み、または完了済みです）';
+        } else if (err.message.includes('Item is not available') || 
+                   err.message.includes('Item does not exist')) {
+          errorMessage = 'この商品は購入できません（既に購入済みまたは存在しません）';
+        } else if (err.message.includes('トランザクションがキャンセル')) {
           errorMessage = 'トランザクションがキャンセルされました';
-        } else if (err.message.includes('Item is not available')) {
-          errorMessage = 'この商品は既に購入済みです';
-        } else if (err.message.includes('Seller cannot buy')) {
-          errorMessage = '自分の商品は購入できません';
-        } else {
-          errorMessage = err.message;
         }
       }
       
@@ -387,6 +458,41 @@ export const ItemDetailPage = () => {
               )}
             </div>
           </div>
+
+          {/* 出品者向け：受け取り確認の状態表示 */}
+          {isOwnItem && item.chain_item_id && (
+            <div className="receipt-status-section">
+              {isLoadingStatus ? (
+                <div className="receipt-status-loading">
+                  <p>状態を確認中...</p>
+                </div>
+              ) : chainItemStatus !== null ? (
+                <div className="receipt-status">
+                  {chainItemStatus === 1 ? (
+                    <div className="receipt-status-pending">
+                      <span className="status-icon">⏳</span>
+                      <span className="status-text">未承認です</span>
+                      <p className="status-description">
+                        購入者が受け取り確認をすると、代金が自動的に送金されます。
+                      </p>
+                    </div>
+                  ) : chainItemStatus === 2 ? (
+                    <div className="receipt-status-completed">
+                      <span className="status-icon">✓</span>
+                      <span className="status-text">受け取り済み</span>
+                      <p className="status-description">
+                        受け取り確認が完了し、代金が送金されました。
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : !isSepoliaNetwork ? (
+                <div className="receipt-status-info">
+                  <p>Sepoliaネットワークに接続すると、受け取り確認の状態を確認できます。</p>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {!isOwnItem && !item.ifPurchased && (
             <div className="purchase-section">

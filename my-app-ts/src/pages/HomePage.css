@@ -94,9 +94,10 @@
 }
 
 .items-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
+  justify-content: flex-start;
 }
 
 .item-card {
@@ -106,6 +107,10 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
+  /* Flexboxでレスポンシブ対応 */
+  flex: 0 0 calc(50% - 6px); /* モバイル: 2列（gapを考慮） */
+  min-width: 0; /* flexアイテムの縮小を許可 */
+  max-width: 100%;
 }
 
 .item-card:hover {
@@ -209,4 +214,30 @@
   padding: 4px 10px;
   border-radius: 4px;
   letter-spacing: 1px;
+}
+
+/* レスポンシブ対応 - タブレット */
+@media (min-width: 600px) {
+  .item-card {
+    flex: 0 0 calc(33.333% - 8px); /* タブレット: 3列 */
+  }
+}
+
+/* レスポンシブ対応 - デスクトップ */
+@media (min-width: 900px) {
+  .item-card {
+    flex: 0 0 calc(25% - 9px); /* デスクトップ: 4列 */
+  }
+  
+  .home-main {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
+/* レスポンシブ対応 - 大画面 */
+@media (min-width: 1200px) {
+  .item-card {
+    flex: 0 0 calc(20% - 9.6px); /* 大画面: 5列 */
+  }
 }
