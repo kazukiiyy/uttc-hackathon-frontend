@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { itemsApi } from '../api/endpoints/items';
 import { likesApi } from '../api/endpoints/likes';
 import { Item, FirestoreUserProfile } from '../types';
-import { useAuth } from '../contexts';
+import { useAuth, useWallet } from '../contexts';
 import { getUserProfile } from '../api/firestore/userProfile';
 import { getFullImageUrl } from '../utils/imageUrl';
+import { ShareButton } from '../components/ui';
 import './ItemDetailPage.css';
 
 const formatDate = (dateString: string) => {
@@ -19,10 +20,24 @@ const formatDate = (dateString: string) => {
   });
 };
 
+type PurchaseStep = 'select' | 'processing' | 'confirming' | 'success' | 'error';
+
 export const ItemDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const {
+    address,
+    isConnected,
+    isSepoliaNetwork,
+    connect,
+    switchNetwork,
+    buyItem,
+    getItem: getChainItem,
+    jpyToWei,
+    jpyToEthDisplay,
+  } = useWallet();
+
   const [item, setItem] = useState<Item | null>(null);
   const [sellerProfile, setSellerProfile] = useState<FirestoreUserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +47,16 @@ export const ItemDetailPage = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
+
+  // 購入モーダル用
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchaseStep, setPurchaseStep] = useState<PurchaseStep>('select');
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+
+  // 出品者向け：受け取り確認の状態
+  const [chainItemStatus, setChainItemStatus] = useState<number | null>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -80,6 +105,41 @@ export const ItemDetailPage = () => {
     fetchLikeStatus();
   }, [id, user]);
 
+  // 出品者が自分の商品を見ている場合、ブロックチェーンのステータスを取得
+  useEffect(() => {
+    const fetchChainStatus = async () => {
+      if (!item || !user || user.uid !== item.uid) {
+        setChainItemStatus(null);
+        return;
+      }
+
+      // 出品者の商品で、chain_item_idがある場合のみ
+      if (!item.chain_item_id) {
+        setChainItemStatus(null);
+        return;
+      }
+
+      // Sepoliaネットワークに接続されている場合のみ
+      if (!isSepoliaNetwork) {
+        setChainItemStatus(null);
+        return;
+      }
+
+      setIsLoadingStatus(true);
+      try {
+        const chainItem = await getChainItem(item.chain_item_id);
+        setChainItemStatus(Number(chainItem.status));
+      } catch (err) {
+        console.error('Failed to fetch chain item status:', err);
+        setChainItemStatus(null);
+      } finally {
+        setIsLoadingStatus(false);
+      }
+    };
+
+    fetchChainStatus();
+  }, [item, user, isSepoliaNetwork, getChainItem]);
+
   const handleLikeToggle = async () => {
     if (!item || !user || isLikeLoading) return;
 
@@ -107,23 +167,128 @@ export const ItemDetailPage = () => {
     }
   };
 
-  const handlePurchase = async () => {
+  // 購入ボタンクリック - モーダルを開く
+  const handlePurchaseClick = () => {
+    setShowPurchaseModal(true);
+    setPurchaseStep('select');
+    setPurchaseError(null);
+    setTxHash(null);
+  };
+
+  // 現金で購入（既存のバックエンドAPI経由）
+  const handleCashPurchase = async () => {
     if (!item || !user) return;
 
-    if (!window.confirm(`「${item.title}」を¥${item.price.toLocaleString()}で購入しますか？`)) {
+    setIsPurchasing(true);
+    setPurchaseStep('processing');
+    try {
+      await itemsApi.purchase(item.id, user.uid);
+      setItem({ ...item, ifPurchased: true });
+      setPurchaseStep('success');
+    } catch (err) {
+      console.error(err);
+      setPurchaseError('購入に失敗しました');
+      setPurchaseStep('error');
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  // スマートコントラクト経由で購入
+  const handleCryptoPurchase = async () => {
+    if (!item || !user || !address) return;
+
+    // chain_item_idが必要（スマートコントラクト上のID）
+    // 既存のDBのidではなく、chain_item_idを使用
+    const chainItemId = item.chain_item_id;
+    if (!chainItemId) {
+      setPurchaseError('この商品はブロックチェーン上に登録されていません');
+      setPurchaseStep('error');
       return;
     }
 
     setIsPurchasing(true);
+    setPurchaseStep('processing');
+    setPurchaseError(null);
+
     try {
-      await itemsApi.purchase(item.id, user.uid);
+      // 購入前に商品のステータスを確認（オプション）
+      if (isSepoliaNetwork) {
+        try {
+          const chainItem = await getChainItem(chainItemId);
+          const status = Number(chainItem.status);
+          // 0 = Listed, 1 = Purchased, 2 = Completed, 3 = Cancelled
+          if (status !== 0) {
+            let statusMessage = 'この商品は購入できません';
+            if (status === 1) {
+              statusMessage = 'この商品は既に購入済みです';
+            } else if (status === 2) {
+              statusMessage = 'この商品は取引が完了済みです';
+            } else if (status === 3) {
+              statusMessage = 'この商品は出品がキャンセルされています';
+            }
+            setPurchaseError(statusMessage);
+            setPurchaseStep('error');
+            setIsPurchasing(false);
+            return;
+          }
+        } catch (statusErr) {
+          // ステータス取得に失敗しても購入処理は続行（コントラクト側でチェックされる）
+          console.warn('商品ステータスの取得に失敗しましたが、購入処理を続行します:', statusErr);
+        }
+      }
+
+      // スマートコントラクトのbuyItemを呼び出し
+      const priceWei = jpyToWei(item.price);
+      
+      // トランザクション送信
+      setPurchaseStep('processing');
+      const hash = await buyItem({
+        itemId: chainItemId,
+        priceWei,
+      });
+
+      setTxHash(hash);
+      setPurchaseStep('confirming');
+
+      // トランザクション完了後、UIを更新
       setItem({ ...item, ifPurchased: true });
-      alert('購入が完了しました！');
-    } catch (err) {
-      console.error(err);
-      alert('購入に失敗しました。');
+      setPurchaseStep('success');
+    } catch (err: any) {
+      console.error('購入エラー:', err);
+      
+      // エラーメッセージを適切に表示
+      let errorMessage = '購入に失敗しました';
+      if (err.message) {
+        errorMessage = err.message;
+        // よくあるエラーメッセージを日本語化
+        if (err.message.includes('Seller cannot buy their own item') || 
+            err.message.includes('出品者は自分の商品を購入できません')) {
+          errorMessage = '出品者は自分の商品を購入できません';
+        } else if (err.message.includes('Insufficient payment') || 
+                   err.message.includes('insufficient funds')) {
+          errorMessage = '残高が不足しています';
+        } else if (err.message.includes('Item is not available for purchase')) {
+          errorMessage = 'この商品は購入できません（既に購入済み、キャンセル済み、または完了済みです）';
+        } else if (err.message.includes('Item is not available') || 
+                   err.message.includes('Item does not exist')) {
+          errorMessage = 'この商品は購入できません（既に購入済みまたは存在しません）';
+        } else if (err.message.includes('トランザクションがキャンセル')) {
+          errorMessage = 'トランザクションがキャンセルされました';
+        }
+      }
+      
+      setPurchaseError(errorMessage);
+      setPurchaseStep('error');
     } finally {
       setIsPurchasing(false);
+    }
+  };
+
+  // モーダルを閉じる
+  const closePurchaseModal = () => {
+    if (purchaseStep !== 'processing' && purchaseStep !== 'confirming') {
+      setShowPurchaseModal(false);
     }
   };
 
@@ -163,6 +328,9 @@ export const ItemDetailPage = () => {
       );
     }
   };
+
+  // ETH価格を表示用に計算
+  const ethPrice = jpyToEthDisplay(item.price);
 
   return (
     <div className="item-detail-page">
@@ -212,16 +380,32 @@ export const ItemDetailPage = () => {
 
         <div className="detail-content">
           <h1 className="detail-title">{item.title}</h1>
-          <div className="price-like-row">
-            <p className="detail-price">¥{item.price.toLocaleString()}</p>
-            <button
-              className={`like-button ${isLiked ? 'liked' : ''}`}
-              onClick={handleLikeToggle}
-              disabled={!user || isLikeLoading}
-            >
-              <span className="like-icon">{isLiked ? '♥' : '♡'}</span>
-              <span className="like-count">{likeCount}</span>
-            </button>
+          <div className="price-card">
+            <div className="price-card-row">
+              <div className="price-info">
+                <p className="detail-price">
+                  <span className="price-currency">¥</span>
+                  {item.price.toLocaleString()}
+                </p>
+                <p className="eth-price">≈ {ethPrice} ETH</p>
+              </div>
+              <div className="price-card-actions">
+                <button
+                  className={`like-button ${isLiked ? 'liked' : ''}`}
+                  onClick={handleLikeToggle}
+                  disabled={!user || isLikeLoading}
+                >
+                  <span className="like-icon">{isLiked ? '♥' : '♡'}</span>
+                  <span className="like-count">{likeCount}</span>
+                </button>
+                <ShareButton
+                  title={item.title}
+                  text={`¥${item.price.toLocaleString()} - ${item.explanation.slice(0, 50)}...`}
+                  url={window.location.href}
+                  className="share-button-detail"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="detail-meta">
@@ -247,7 +431,7 @@ export const ItemDetailPage = () => {
             <p className="detail-category">{item.category}</p>
           </div>
 
-          <div className="detail-section seller-section">
+          <div className="seller-card">
             <h3>出品者</h3>
             <div className="seller-info">
               {sellerProfile?.profileImageUrl ? (
@@ -275,10 +459,45 @@ export const ItemDetailPage = () => {
             </div>
           </div>
 
+          {/* 出品者向け：受け取り確認の状態表示 */}
+          {isOwnItem && item.chain_item_id && (
+            <div className="receipt-status-section">
+              {isLoadingStatus ? (
+                <div className="receipt-status-loading">
+                  <p>状態を確認中...</p>
+                </div>
+              ) : chainItemStatus !== null ? (
+                <div className="receipt-status">
+                  {chainItemStatus === 1 ? (
+                    <div className="receipt-status-pending">
+                      <span className="status-icon">⏳</span>
+                      <span className="status-text">未承認です</span>
+                      <p className="status-description">
+                        購入者が受け取り確認をすると、代金が自動的に送金されます。
+                      </p>
+                    </div>
+                  ) : chainItemStatus === 2 ? (
+                    <div className="receipt-status-completed">
+                      <span className="status-icon">✓</span>
+                      <span className="status-text">受け取り済み</span>
+                      <p className="status-description">
+                        受け取り確認が完了し、代金が送金されました。
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : !isSepoliaNetwork ? (
+                <div className="receipt-status-info">
+                  <p>Sepoliaネットワークに接続すると、受け取り確認の状態を確認できます。</p>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {!isOwnItem && !item.ifPurchased && (
             <div className="purchase-section">
               <button
-                onClick={handlePurchase}
+                onClick={handlePurchaseClick}
                 className="purchase-button"
                 disabled={isPurchasing}
               >
@@ -288,6 +507,133 @@ export const ItemDetailPage = () => {
           )}
         </div>
       </main>
+
+      {/* 購入方法選択モーダル */}
+      {showPurchaseModal && (
+        <div className="purchase-modal-overlay" onClick={closePurchaseModal}>
+          <div className="purchase-modal" onClick={(e) => e.stopPropagation()}>
+            {purchaseStep === 'select' && (
+              <>
+                <h2 className="modal-title">購入方法を選択</h2>
+                <p className="modal-subtitle">「{item.title}」を購入します</p>
+
+                <div className="payment-options">
+                  <button className="payment-option cash" onClick={handleCashPurchase}>
+                    <span className="payment-icon">💴</span>
+                    <span className="payment-label">現金で購入</span>
+                    <span className="payment-price">¥{item.price.toLocaleString()}</span>
+                  </button>
+
+                  <button
+                    className="payment-option crypto"
+                    onClick={async () => {
+                      if (!isConnected) {
+                        await connect();
+                        return;
+                      }
+                      if (!isSepoliaNetwork) {
+                        await switchNetwork('sepolia');
+                        return;
+                      }
+                      handleCryptoPurchase();
+                    }}
+                  >
+                    <span className="payment-icon">⟠</span>
+                    <span className="payment-label">
+                      {!isConnected
+                        ? 'ウォレットを接続'
+                        : !isSepoliaNetwork
+                        ? 'Sepoliaに切替'
+                        : 'Sepolia ETHで購入'}
+                    </span>
+                    <span className="payment-price">{ethPrice} ETH</span>
+                  </button>
+                </div>
+
+                {isConnected && (
+                  <p className="wallet-info">
+                    接続中: {address?.slice(0, 6)}...{address?.slice(-4)}
+                    {!isSepoliaNetwork && (
+                      <span className="network-warning"> ⚠️ Sepoliaに切り替えてください</span>
+                    )}
+                  </p>
+                )}
+
+                <button className="modal-close-btn" onClick={closePurchaseModal}>
+                  キャンセル
+                </button>
+              </>
+            )}
+
+            {purchaseStep === 'processing' && (
+              <div className="modal-status">
+                <div className="spinner"></div>
+                <h2>処理中...</h2>
+                <p>トランザクションを送信しています</p>
+                <p className="modal-hint">MetaMaskで確認してください</p>
+              </div>
+            )}
+
+            {purchaseStep === 'confirming' && (
+              <div className="modal-status">
+                <div className="spinner"></div>
+                <h2>確認中...</h2>
+                <p>ブロックチェーンで確認しています</p>
+                {txHash && (
+                  <a
+                    href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tx-link"
+                  >
+                    Etherscanで確認 →
+                  </a>
+                )}
+              </div>
+            )}
+
+            {purchaseStep === 'success' && (
+              <div className="modal-status success">
+                <span className="status-icon">✓</span>
+                <h2>購入完了！</h2>
+                <p>「{item.title}」を購入しました</p>
+                {txHash && (
+                  <a
+                    href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tx-link"
+                  >
+                    Etherscanで確認 →
+                  </a>
+                )}
+                <div className="success-share">
+                  <ShareButton
+                    title={`「${item.title}」を購入しました！`}
+                    text={`¥${item.price.toLocaleString()}の商品をゲット！`}
+                    url={window.location.href}
+                    className="share-button-success"
+                  />
+                </div>
+                <button className="modal-close-btn" onClick={closePurchaseModal}>
+                  閉じる
+                </button>
+              </div>
+            )}
+
+            {purchaseStep === 'error' && (
+              <div className="modal-status error">
+                <span className="status-icon">✗</span>
+                <h2>エラー</h2>
+                <p>{purchaseError}</p>
+                <button className="modal-close-btn" onClick={() => setPurchaseStep('select')}>
+                  戻る
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

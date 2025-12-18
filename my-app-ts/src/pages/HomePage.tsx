@@ -87,14 +87,22 @@ export const HomePage = () => {
 
   return (
     <div className="home-page">
-      <header className="home-header">
-        <h1>フリマアプリ</h1>
-      </header>
-
       <main className="home-main">
-        <div className="welcome-section">
-          <h2>ようこそ、{user?.displayName || 'ゲスト'}さん</h2>
-          <p>商品を探したり、出品したりしてみましょう。</p>
+        <div className="welcome-card">
+          <div className="welcome-card-content">
+            <h2>ようこそ</h2>
+            <p className="welcome-name">{user?.displayName || 'ゲスト'}さん</p>
+          </div>
+          <div className="welcome-card-actions">
+            <button className="welcome-action-btn" onClick={() => navigate('/search')}>
+              <span className="action-icon">🔍</span>
+              <span>探す</span>
+            </button>
+            <button className="welcome-action-btn" onClick={() => navigate('/sell')}>
+              <span className="action-icon">📦</span>
+              <span>出品</span>
+            </button>
+          </div>
         </div>
 
         <section className="home-section">
@@ -108,18 +116,21 @@ export const HomePage = () => {
               {latestItems.map((item) => (
                 <div
                   key={item.id}
-                  className="item-card"
+                  className={`item-card ${item.ifPurchased ? 'sold' : ''}`}
                   onClick={() => handleItemClick(item.id)}
                 >
-                  {item.image_urls && item.image_urls.length > 0 ? (
-                    <img
-                      src={getFullImageUrl(item.image_urls[0])}
-                      alt={item.title}
-                      className="item-card-image"
-                    />
-                  ) : (
-                    <div className="item-card-image-placeholder">No Image</div>
-                  )}
+                  <div className="item-card-image-wrapper">
+                    {item.image_urls && item.image_urls.length > 0 ? (
+                      <img
+                        src={getFullImageUrl(item.image_urls[0])}
+                        alt={item.title}
+                        className="item-card-image"
+                      />
+                    ) : (
+                      <div className="item-card-image-placeholder">No Image</div>
+                    )}
+                    {item.ifPurchased && <span className="sold-badge">SOLD</span>}
+                  </div>
                   <div className="item-card-info">
                     <p className="item-card-title">{item.title}</p>
                     <div className="item-card-bottom">
@@ -133,7 +144,6 @@ export const HomePage = () => {
                         <span className="item-like-count">{likeCounts[item.id] || 0}</span>
                       </button>
                     </div>
-                    {item.ifPurchased && <span className="sold-badge">売切</span>}
                   </div>
                 </div>
               ))}

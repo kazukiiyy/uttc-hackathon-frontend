@@ -29,7 +29,9 @@ export const itemsApi = {
   },
 
   getAll: () => {
-    return apiClient.get<Item[]>('/getItems');
+    // バックエンドではcategoryまたはuidが必要なため、全件取得はgetLatestを使用
+    // または空の配列を返す（実際の使用箇所を確認して適切に修正）
+    return apiClient.get<Item[]>('/getItems/latest?limit=100');
   },
 
   getById: (id: string) => {
@@ -52,13 +54,36 @@ export const itemsApi = {
     });
   },
 
-  getPurchasedItems: (buyerUid: string) => {
+  getPurchasedItems: (buyerUid: string, buyerAddress?: string) => {
+    const params = new URLSearchParams();
+    if (buyerUid) {
+      params.append('buyer_uid', buyerUid);
+    }
+    if (buyerAddress) {
+      params.append('buyer_address', buyerAddress);
+    }
     return apiClient.get<PurchasedItem[]>(
-      `/purchases?buyer_uid=${encodeURIComponent(buyerUid)}`
+      `/purchases?${params.toString()}`
     );
   },
 
   getLatest: (limit: number = 10) => {
     return apiClient.get<Item[]>(`/getItems/latest?limit=${limit}`);
+  },
+
+  getByIds: async (ids: number[]): Promise<Item[]> => {
+    if (ids.length === 0) return [];
+    // 個別に取得して結合
+    const items = await Promise.all(
+      ids.map(id => apiClient.get<Item>(`/getItems/${id}`).catch(() => null))
+    );
+    return items.filter((item): item is Item => item !== null);
+  },
+
+  // 画像のみをアップロードしてURLを取得（onchain出品用）
+  uploadImage: (image: File) => {
+    const formData = new FormData();
+    formData.append('image', image);
+    return apiClient.postFormData<{ image_url: string; image_urls: string[] }>('/uploadImage', formData);
   },
 };

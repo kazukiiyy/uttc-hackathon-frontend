@@ -144,22 +144,24 @@ export const SearchPage = () => {
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    className="item-card"
+                    className={`item-card ${item.ifPurchased ? 'sold' : ''}`}
                     onClick={() => handleItemClick(item.id)}
                   >
-                    {item.image_urls && item.image_urls.length > 0 ? (
-                      <img
-                        src={getFullImageUrl(item.image_urls[0])}
-                        alt={item.title}
-                        className="item-image"
-                      />
-                    ) : (
-                      <div className="item-image-placeholder">No Image</div>
-                    )}
+                    <div className="item-image-wrapper">
+                      {item.image_urls && item.image_urls.length > 0 ? (
+                        <img
+                          src={getFullImageUrl(item.image_urls[0])}
+                          alt={item.title}
+                          className="item-image"
+                        />
+                      ) : (
+                        <div className="item-image-placeholder">No Image</div>
+                      )}
+                      {item.ifPurchased && <span className="sold-badge">SOLD</span>}
+                    </div>
                     <div className="item-info">
                       <p className="item-title">{item.title}</p>
                       <p className="item-price">¥{item.price.toLocaleString()}</p>
-                      {item.ifPurchased && <span className="sold-badge">売り切れ</span>}
                     </div>
                   </div>
                 ))}

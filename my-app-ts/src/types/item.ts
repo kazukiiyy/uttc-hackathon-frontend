@@ -18,4 +18,5 @@ export interface Item {
   category: string;
   like_count: number;
   created_at: string;
+  chain_item_id?: number;
 }
