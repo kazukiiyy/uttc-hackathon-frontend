@@ -1,8 +1,8 @@
 // FrimaMarketplace コントラクト設定
 
 // Sepolia testnetにデプロイ済みコントラクトアドレス
-export const MARKETPLACE_CONTRACT_ADDRESS = process.env.REACT_APP_MARKETPLACE_CONTRACT_ADDRESS || '0xB81c231E8EcB24E9DCFB7Ef5dD6c837A73f87108';
-export const NFT_CONTRACT_ADDRESS = process.env.REACT_APP_NFT_CONTRACT_ADDRESS || '0x8D479A0e34f93599C436488bBc5614dce3253025';
+export const MARKETPLACE_CONTRACT_ADDRESS = process.env.REACT_APP_MARKETPLACE_CONTRACT_ADDRESS || '0x1df216e3947D28C992082C22f1Efc3946d192D71';
+export const NFT_CONTRACT_ADDRESS = process.env.REACT_APP_NFT_CONTRACT_ADDRESS || '0x1F7E751263B85bf01adD85D8c1EDf4858402C25f';
 
 // 価格レート: 1円 = 0.000001 ETH (Sepolia用に少なめ)
 // 例: 1000円 = 0.001 ETH
@@ -47,7 +47,10 @@ export const MARKETPLACE_ABI = [
   },
   // buyItem - 商品購入
   {
-    inputs: [{ internalType: 'uint256', name: '_itemId', type: 'uint256' }],
+    inputs: [
+      { internalType: 'uint256', name: '_itemId', type: 'uint256' },
+      { internalType: 'string', name: '_buyerUid', type: 'string' },
+    ],
     name: 'buyItem',
     outputs: [],
     stateMutability: 'payable',
@@ -104,6 +107,7 @@ export const MARKETPLACE_ABI = [
           { internalType: 'string', name: 'category', type: 'string' },
           { internalType: 'address', name: 'seller', type: 'address' },
           { internalType: 'address', name: 'buyer', type: 'address' },
+          { internalType: 'string', name: 'buyerUid', type: 'string' },
           { internalType: 'uint8', name: 'status', type: 'uint8' },
         ],
         internalType: 'struct FrimaMarketplace.Item',
@@ -140,6 +144,7 @@ export const MARKETPLACE_ABI = [
       { indexed: false, internalType: 'uint256', name: 'price', type: 'uint256' },
       { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
       { indexed: false, internalType: 'uint256', name: 'tokenId', type: 'uint256' },
+      { indexed: false, internalType: 'string', name: 'buyerUid', type: 'string' },
     ],
     name: 'ItemPurchased',
     type: 'event',

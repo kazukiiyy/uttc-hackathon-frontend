@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts';
 import { Item } from '../types';
@@ -23,7 +23,7 @@ export const DMPage = () => {
   const [recipientProfile, setRecipientProfile] = useState<FirestoreUserProfile | null>(null);
 
   // メッセージ一覧を取得
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!user || !recipientUid) return;
 
     try {
@@ -37,7 +37,7 @@ export const DMPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, recipientUid]);
 
   // 相手のプロフィールを取得
   useEffect(() => {
@@ -62,7 +62,7 @@ export const DMPage = () => {
     const interval = setInterval(fetchMessages, 5000);
 
     return () => clearInterval(interval);
-  }, [user, recipientUid]);
+  }, [fetchMessages]);
 
   // メッセージが追加されたら自動スクロール
   useEffect(() => {
@@ -74,13 +74,14 @@ export const DMPage = () => {
 
     setIsSending(true);
     try {
-      const newMessage = await messagesApi.sendMessage(
+      await messagesApi.sendMessage(
         user.uid,
         recipientUid,
         inputText.trim()
       );
-      setMessages((prev) => [...prev, newMessage]);
       setInputText('');
+      // 送信後に最新のメッセージを取得
+      await fetchMessages();
     } catch (err) {
       console.error('Failed to send message:', err);
       alert('メッセージの送信に失敗しました');
@@ -89,7 +90,7 @@ export const DMPage = () => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -177,7 +178,7 @@ export const DMPage = () => {
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="メッセージを入力..."
             className="dm-input"
             rows={1}
