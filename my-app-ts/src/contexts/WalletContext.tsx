@@ -51,6 +51,7 @@ interface ListItemParams {
 interface BuyItemParams {
   itemId: number;
   priceWei: bigint;
+  buyerUid: string;
 }
 
 interface WalletContextType {
@@ -243,7 +244,7 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       
       // コントラクト側で出品者チェックが行われるため、ここではチェックしない
       // エラーメッセージを適切に処理する
-      const tx = await contract.buyItem(params.itemId, { value: params.priceWei });
+      const tx = await contract.buyItem(params.itemId, params.buyerUid, { value: params.priceWei });
       await tx.wait();
       await fetchBalance(address);
       return tx.hash;

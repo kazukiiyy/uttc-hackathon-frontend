@@ -246,6 +246,7 @@ export const ItemDetailPage = () => {
       const hash = await buyItem({
         itemId: chainItemId,
         priceWei,
+        buyerUid: user.uid,
       });
 
       setTxHash(hash);
