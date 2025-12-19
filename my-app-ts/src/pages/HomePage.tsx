@@ -124,7 +124,7 @@ export const HomePage = () => {
                       <img
                         src={getFullImageUrl(item.image_urls[0])}
                         alt={item.title}
-                        className="item-card-image"
+                        className="item-card-image-home"
                       />
                     ) : (
                       <div className="item-card-image-placeholder">No Image</div>
