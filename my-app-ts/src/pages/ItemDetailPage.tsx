@@ -212,7 +212,8 @@ export const ItemDetailPage = () => {
     setPurchaseError(null);
 
     try {
-      // 購入前に商品のステータスを確認（オプション）
+      // 購入前に商品のステータスと価格を確認
+      let priceWei: bigint;
       if (isSepoliaNetwork) {
         try {
           const chainItem = await getChainItem(chainItemId);
@@ -232,14 +233,17 @@ export const ItemDetailPage = () => {
             setIsPurchasing(false);
             return;
           }
+          // スマートコントラクトから取得した価格を使用（Wei単位）
+          priceWei = BigInt(chainItem.price.toString());
         } catch (statusErr) {
-          // ステータス取得に失敗しても購入処理は続行（コントラクト側でチェックされる）
-          console.warn('商品ステータスの取得に失敗しましたが、購入処理を続行します:', statusErr);
+          // ステータス取得に失敗した場合は、DBの価格から計算（フォールバック）
+          console.warn('商品情報の取得に失敗しました。DBの価格を使用します:', statusErr);
+          priceWei = jpyToWei(item.price);
         }
+      } else {
+        // Sepoliaネットワークでない場合はDBの価格から計算
+        priceWei = jpyToWei(item.price);
       }
-
-      // スマートコントラクトのbuyItemを呼び出し
-      const priceWei = jpyToWei(item.price);
       
       // トランザクション送信
       setPurchaseStep('processing');
