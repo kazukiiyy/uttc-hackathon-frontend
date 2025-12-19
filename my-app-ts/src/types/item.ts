@@ -19,4 +19,5 @@ export interface Item {
   like_count: number;
   created_at: string;
   chain_item_id?: number;
+  status?: 'listed' | 'purchased' | 'completed' | 'cancelled';
 }

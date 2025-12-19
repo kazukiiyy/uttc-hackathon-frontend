@@ -158,6 +158,7 @@ export const SearchPage = () => {
                         <div className="item-image-placeholder">No Image</div>
                       )}
                       {item.ifPurchased && <span className="sold-badge">SOLD</span>}
+                      {item.status === 'cancelled' && <span className="status-badge status-cancelled">キャンセル</span>}
                     </div>
                     <div className="item-info">
                       <p className="item-title">{item.title}</p>

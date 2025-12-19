@@ -503,3 +503,66 @@
 .network-option:hover {
   background-color: rgba(255, 255, 255, 0.25);
 }
+
+/* ステータスバッジ */
+.status-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.status-listed {
+  background-color: #3498db;
+  color: #fff;
+}
+
+.status-purchased {
+  background-color: #f39c12;
+  color: #fff;
+}
+
+.status-completed {
+  background-color: #27ae60;
+  color: #fff;
+}
+
+.status-cancelled {
+  background-color: #95a5a6;
+  color: #fff;
+}
+
+/* キャンセルボタン */
+.cancel-listing-btn {
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
+}
+
+.cancel-listing-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(231, 76, 60, 0.4);
+}
+
+.cancel-listing-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.cancel-listing-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+}

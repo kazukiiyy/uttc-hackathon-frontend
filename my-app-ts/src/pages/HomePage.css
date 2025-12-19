@@ -216,6 +216,22 @@
   letter-spacing: 1px;
 }
 
+.status-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+.status-cancelled {
+  background: #95a5a6;
+  color: #fff;
+}
+
 /* レスポンシブ対応 - タブレット */
 @media (min-width: 600px) {
   .item-card {

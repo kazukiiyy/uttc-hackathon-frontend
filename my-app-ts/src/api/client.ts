@@ -16,8 +16,10 @@ class ApiClient {
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: '不明なエラー' }));
+      // バックエンドは {error: string} 形式で返す可能性がある
+      const errorMessage = errorData.message || errorData.error || response.statusText;
       throw new ApiException(
-        errorData.message || response.statusText,
+        errorMessage,
         response.status,
         errorData
       );

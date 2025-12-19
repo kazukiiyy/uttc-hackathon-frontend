@@ -29,6 +29,7 @@ export const MyPage = () => {
     disconnect,
     switchNetwork,
     confirmReceipt,
+    cancelListing,
     getItem,
     isSepoliaNetwork,
   } = useWallet();
@@ -43,6 +44,7 @@ export const MyPage = () => {
   const [likedItems, setLikedItems] = useState<Item[]>([]);
   const [isLoadingLiked, setIsLoadingLiked] = useState(true);
   const [confirmingItemId, setConfirmingItemId] = useState<number | null>(null);
+  const [cancellingItemId, setCancellingItemId] = useState<number | null>(null);
   const [itemStatuses, setItemStatuses] = useState<Record<number, { chainItemId?: number; status?: number }>>({});
 
   useEffect(() => {
@@ -270,6 +272,71 @@ export const MyPage = () => {
     }
   };
 
+  const handleCancelListing = async (item: Item, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!item.chain_item_id) {
+      alert('この商品はブロックチェーン上に登録されていません');
+      return;
+    }
+
+    if (!isConnected) {
+      alert('ウォレットを接続してください');
+      return;
+    }
+
+    if (!isSepoliaNetwork) {
+      const switchConfirm = window.confirm('Sepoliaネットワークに切り替えますか？');
+      if (switchConfirm) {
+        try {
+          await switchNetwork('sepolia');
+        } catch (err) {
+          console.error('ネットワーク切り替えエラー:', err);
+        }
+      }
+      return;
+    }
+
+    if (item.status !== 'listed') {
+      alert('出品中の商品のみキャンセルできます');
+      return;
+    }
+
+    if (!window.confirm('この商品の出品をキャンセルしますか？\nキャンセル後は元に戻せません。')) {
+      return;
+    }
+
+    setCancellingItemId(item.id);
+    try {
+      const txHash = await cancelListing(item.chain_item_id);
+      alert(`出品をキャンセルしました！\nトランザクション: ${txHash}`);
+
+      // ステータスを更新
+      setListedItems((prev) =>
+        prev.map((i) =>
+          i.id === item.id ? { ...i, status: 'cancelled' as const } : i
+        )
+      );
+    } catch (err: any) {
+      console.error('キャンセルエラー:', err);
+      let errorMessage = '不明なエラー';
+      if (err.message) {
+        if (err.message.includes('Only seller can cancel')) {
+          errorMessage = '出品者のみがキャンセルできます';
+        } else if (err.message.includes('Item is not listed')) {
+          errorMessage = 'この商品は出品中ではありません';
+        } else if (err.message.includes('ACTION_REJECTED') || err.message.includes('4001')) {
+          errorMessage = 'トランザクションがキャンセルされました';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      alert(`キャンセルに失敗しました: ${errorMessage}`);
+    } finally {
+      setCancellingItemId(null);
+    }
+  };
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -376,28 +443,57 @@ export const MyPage = () => {
             <p className="placeholder-text">出品した商品がありません</p>
           ) : (
             <div className="items-grid-horizontal">
-              {listedItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="item-card-small"
-                  onClick={() => handleItemClick(item.id)}
-                >
-                  {item.image_urls && item.image_urls.length > 0 ? (
-                    <img
-                      src={getFullImageUrl(item.image_urls[0])}
-                      alt={item.title}
-                      className="item-card-image"
-                    />
-                  ) : (
-                    <div className="item-card-image-placeholder">No Image</div>
-                  )}
-                  <div className="item-card-info">
-                    <p className="item-card-title">{item.title}</p>
-                    <p className="item-card-price">¥{item.price.toLocaleString()}</p>
-                    {item.ifPurchased && <span className="sold-badge-small">売切</span>}
+              {listedItems.map((item) => {
+                const canCancel = item.status === 'listed' && item.chain_item_id;
+                const isCancelling = cancellingItemId === item.id;
+
+                const getStatusBadge = () => {
+                  switch (item.status) {
+                    case 'listed':
+                      return <span className="status-badge status-listed">出品中</span>;
+                    case 'purchased':
+                      return <span className="status-badge status-purchased">購入済み</span>;
+                    case 'completed':
+                      return <span className="status-badge status-completed">取引完了</span>;
+                    case 'cancelled':
+                      return <span className="status-badge status-cancelled">キャンセル</span>;
+                    default:
+                      return null;
+                  }
+                };
+
+                return (
+                  <div
+                    key={item.id}
+                    className="item-card-small"
+                    onClick={() => handleItemClick(item.id)}
+                  >
+                    {item.image_urls && item.image_urls.length > 0 ? (
+                      <img
+                        src={getFullImageUrl(item.image_urls[0])}
+                        alt={item.title}
+                        className="item-card-image"
+                      />
+                    ) : (
+                      <div className="item-card-image-placeholder">No Image</div>
+                    )}
+                    <div className="item-card-info">
+                      <p className="item-card-title">{item.title}</p>
+                      <p className="item-card-price">¥{item.price.toLocaleString()}</p>
+                      {getStatusBadge()}
+                      {canCancel && (
+                        <button
+                          className="cancel-listing-btn"
+                          onClick={(e) => handleCancelListing(item, e)}
+                          disabled={isCancelling || !isConnected || !isSepoliaNetwork}
+                        >
+                          {isCancelling ? 'キャンセル中...' : '出品取消'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
