@@ -20,7 +20,7 @@ const formatDate = (dateString: string) => {
   });
 };
 
-type PurchaseStep = 'select' | 'processing' | 'confirming' | 'success' | 'error';
+type PurchaseStep = 'processing' | 'confirming' | 'success' | 'error';
 
 export const ItemDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,7 +50,7 @@ export const ItemDetailPage = () => {
 
   // 購入モーダル用
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [purchaseStep, setPurchaseStep] = useState<PurchaseStep>('select');
+  const [purchaseStep, setPurchaseStep] = useState<PurchaseStep>('processing');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
@@ -167,36 +167,35 @@ export const ItemDetailPage = () => {
     }
   };
 
-  // 購入ボタンクリック - モーダルを開く
-  const handlePurchaseClick = () => {
-    setShowPurchaseModal(true);
-    setPurchaseStep('select');
-    setPurchaseError(null);
-    setTxHash(null);
-  };
-
-  // 現金で購入（既存のバックエンドAPI経由）
-  const handleCashPurchase = async () => {
+  // 購入ボタンクリック - 直接購入処理を開始
+  const handlePurchaseClick = async () => {
     if (!item || !user) return;
 
-    setIsPurchasing(true);
-    setPurchaseStep('processing');
-    try {
-      await itemsApi.purchase(item.id, user.uid);
-      setItem({ ...item, ifPurchased: true });
-      setPurchaseStep('success');
-    } catch (err) {
-      console.error(err);
-      setPurchaseError('購入に失敗しました');
-      setPurchaseStep('error');
-    } finally {
-      setIsPurchasing(false);
+    // ウォレットが接続されていない場合は接続を促す
+    if (!isConnected) {
+      await connect();
+      return;
     }
+
+    // Sepoliaネットワークでない場合は切り替えを促す
+    if (!isSepoliaNetwork) {
+      await switchNetwork('sepolia');
+      return;
+    }
+
+    // 購入処理を実行（handleCryptoPurchase内でモーダル管理）
+    await handleCryptoPurchase();
   };
 
   // スマートコントラクト経由で購入
   const handleCryptoPurchase = async () => {
     if (!item || !user || !address) return;
+
+    // モーダルを開く
+    setShowPurchaseModal(true);
+    setPurchaseStep('processing');
+    setPurchaseError(null);
+    setTxHash(null);
 
     // chain_item_idが必要（スマートコントラクト上のID）
     // 既存のDBのidではなく、chain_item_idを使用
@@ -204,12 +203,11 @@ export const ItemDetailPage = () => {
     if (!chainItemId) {
       setPurchaseError('この商品はブロックチェーン上に登録されていません');
       setPurchaseStep('error');
+      setIsPurchasing(false);
       return;
     }
 
     setIsPurchasing(true);
-    setPurchaseStep('processing');
-    setPurchaseError(null);
 
     try {
       // 購入前に商品のステータスと価格を確認
@@ -389,10 +387,9 @@ export const ItemDetailPage = () => {
             <div className="price-card-row">
               <div className="price-info">
                 <p className="detail-price">
-                  <span className="price-currency">¥</span>
-                  {item.price.toLocaleString()}
+                  <span className="price-currency">⟠</span>
+                  {ethPrice} ETH
                 </p>
-                <p className="eth-price">≈ {ethPrice} ETH</p>
               </div>
               <div className="price-card-actions">
                 <button
@@ -405,7 +402,7 @@ export const ItemDetailPage = () => {
                 </button>
                 <ShareButton
                   title={item.title}
-                  text={`¥${item.price.toLocaleString()} - ${item.explanation.slice(0, 50)}...`}
+                  text={`${ethPrice} ETH - ${item.explanation.slice(0, 50)}...`}
                   url={window.location.href}
                   className="share-button-detail"
                 />
@@ -506,70 +503,17 @@ export const ItemDetailPage = () => {
                 className="purchase-button"
                 disabled={isPurchasing}
               >
-                {isPurchasing ? '処理中...' : `¥${item.price.toLocaleString()}で購入する`}
+                {isPurchasing ? '処理中...' : !isConnected ? 'ウォレットを接続して購入' : !isSepoliaNetwork ? 'Sepoliaに切り替えて購入' : `${ethPrice} ETHで購入する`}
               </button>
             </div>
           )}
         </div>
       </main>
 
-      {/* 購入方法選択モーダル */}
+      {/* 購入処理モーダル */}
       {showPurchaseModal && (
         <div className="purchase-modal-overlay" onClick={closePurchaseModal}>
           <div className="purchase-modal" onClick={(e) => e.stopPropagation()}>
-            {purchaseStep === 'select' && (
-              <>
-                <h2 className="modal-title">購入方法を選択</h2>
-                <p className="modal-subtitle">「{item.title}」を購入します</p>
-
-                <div className="payment-options">
-                  <button className="payment-option cash" onClick={handleCashPurchase}>
-                    <span className="payment-icon">💴</span>
-                    <span className="payment-label">現金で購入</span>
-                    <span className="payment-price">¥{item.price.toLocaleString()}</span>
-                  </button>
-
-                  <button
-                    className="payment-option crypto"
-                    onClick={async () => {
-                      if (!isConnected) {
-                        await connect();
-                        return;
-                      }
-                      if (!isSepoliaNetwork) {
-                        await switchNetwork('sepolia');
-                        return;
-                      }
-                      handleCryptoPurchase();
-                    }}
-                  >
-                    <span className="payment-icon">⟠</span>
-                    <span className="payment-label">
-                      {!isConnected
-                        ? 'ウォレットを接続'
-                        : !isSepoliaNetwork
-                        ? 'Sepoliaに切替'
-                        : 'Sepolia ETHで購入'}
-                    </span>
-                    <span className="payment-price">{ethPrice} ETH</span>
-                  </button>
-                </div>
-
-                {isConnected && (
-                  <p className="wallet-info">
-                    接続中: {address?.slice(0, 6)}...{address?.slice(-4)}
-                    {!isSepoliaNetwork && (
-                      <span className="network-warning"> ⚠️ Sepoliaに切り替えてください</span>
-                    )}
-                  </p>
-                )}
-
-                <button className="modal-close-btn" onClick={closePurchaseModal}>
-                  キャンセル
-                </button>
-              </>
-            )}
-
             {purchaseStep === 'processing' && (
               <div className="modal-status">
                 <div className="spinner"></div>
@@ -615,7 +559,7 @@ export const ItemDetailPage = () => {
                 <div className="success-share">
                   <ShareButton
                     title={`「${item.title}」を購入しました！`}
-                    text={`¥${item.price.toLocaleString()}の商品をゲット！`}
+                    text={`${ethPrice} ETHの商品をゲット！`}
                     url={window.location.href}
                     className="share-button-success"
                   />
@@ -631,8 +575,8 @@ export const ItemDetailPage = () => {
                 <span className="status-icon">✗</span>
                 <h2>エラー</h2>
                 <p>{purchaseError}</p>
-                <button className="modal-close-btn" onClick={() => setPurchaseStep('select')}>
-                  戻る
+                <button className="modal-close-btn" onClick={closePurchaseModal}>
+                  閉じる
                 </button>
               </div>
             )}
