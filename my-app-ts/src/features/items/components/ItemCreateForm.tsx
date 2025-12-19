@@ -286,10 +286,15 @@ export const ItemCreateForm = () => {
         <div className="input-group">
           <label className="label">価格 (円)</label>
           <input
-            type="number"
-            className="input-field"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            className="input-field price-input"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value.replace(/[^0-9]/g, '');
+              setPrice(value);
+            }}
             placeholder="3000"
           />
           {price && (

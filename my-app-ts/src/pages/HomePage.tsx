@@ -130,6 +130,7 @@ export const HomePage = () => {
                       <div className="item-card-image-placeholder">No Image</div>
                     )}
                     {item.ifPurchased && <span className="sold-badge">SOLD</span>}
+                    {item.status === 'cancelled' && <span className="status-badge status-cancelled">キャンセル</span>}
                   </div>
                   <div className="item-card-info">
                     <p className="item-card-title">{item.title}</p>
