@@ -267,10 +267,12 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
         errorMessage = error.data.message;
       } else if (error.message) {
         // MetaMaskのエラーメッセージを抽出
-        // "execution reverted: Seller cannot buy their own item." のような形式
+        // "execution reverted: Insufficient payment." のような形式
         const match = error.message.match(/execution reverted:?\s*(.+?)(?:\.|$)/i);
         if (match && match[1]) {
           errorMessage = match[1].trim();
+        } else if (error.message.includes('Insufficient payment')) {
+          errorMessage = 'Insufficient payment';
         } else if (!error.message.includes('missing revert data')) {
           errorMessage = error.message;
         }
@@ -279,7 +281,9 @@ export const WalletProvider = ({ children }: WalletProviderProps) => {
       // よくあるエラーメッセージを日本語化
       if (errorMessage.includes('Seller cannot buy their own item')) {
         errorMessage = '出品者は自分の商品を購入できません';
-      } else if (errorMessage.includes('Insufficient payment') || errorMessage.includes('insufficient funds')) {
+      } else if (errorMessage.includes('Insufficient payment')) {
+        errorMessage = '支払い額が不足しています。商品の価格を確認してください。';
+      } else if (errorMessage.includes('insufficient funds')) {
         errorMessage = '残高が不足しています';
       } else if (errorMessage.includes('Item is not available for purchase')) {
         errorMessage = 'この商品は購入できません（既に購入済み、キャンセル済み、または完了済みです）';
