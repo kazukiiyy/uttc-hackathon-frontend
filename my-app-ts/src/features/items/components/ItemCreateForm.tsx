@@ -284,7 +284,7 @@ export const ItemCreateForm = () => {
         </div>
 
         <div className="input-group">
-          <label className="label">価格 (円)</label>
+          <label className="label">価格 </label>
           <input
             type="text"
             inputMode="numeric"
