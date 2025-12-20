@@ -378,14 +378,13 @@ export const MyPage = () => {
             </div>
           )}
         </div>
-        <h2>{displayName}</h2>
-        <p>{user?.email}</p>
-        {isConnected && (
-          <div className="header-wallet-info">
+        <div className="profile-info">
+          <h2>{displayName}</h2>
+          {isConnected && (
             <span className="header-wallet-address">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
-          </div>
-        )}
-        {profile?.bio && <p className="profile-bio">{profile.bio}</p>}
+          )}
+          {profile?.bio && <div className="profile-bio">{profile.bio}</div>}
+        </div>
       </header>
 
       <main className="my-page-main">
