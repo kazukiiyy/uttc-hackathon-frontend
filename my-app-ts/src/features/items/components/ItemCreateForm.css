@@ -20,7 +20,7 @@
 /* 画像アップロードエリアのデザイン */
 .image-upload-area {
   width: 100%;
-  height: 200px;
+  min-height: 200px;
   border: 2px dashed #e0e0e0;
   border-radius: 16px;
   display: flex;
@@ -40,8 +40,10 @@
 
 .image-preview {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
+  background-color: #f8f8f8;
 }
 
 .upload-placeholder {
