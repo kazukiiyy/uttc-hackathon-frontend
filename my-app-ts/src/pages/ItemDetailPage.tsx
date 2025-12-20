@@ -58,6 +58,14 @@ export const ItemDetailPage = () => {
   const [chainItemStatus, setChainItemStatus] = useState<number | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(false);
 
+  // 出品者プロフィールシート
+  const [showSellerSheet, setShowSellerSheet] = useState(false);
+  const [sellerItems, setSellerItems] = useState<Item[]>([]);
+
+  // 同カテゴリのおすすめ商品
+  const [relatedItems, setRelatedItems] = useState<Item[]>([]);
+  const [isLoadingRelated, setIsLoadingRelated] = useState(true);
+
   useEffect(() => {
     const fetchItem = async () => {
       if (!id) return;
@@ -89,6 +97,26 @@ export const ItemDetailPage = () => {
       setLikeCount(item.like_count);
     }
   }, [item]);
+
+  // 同じカテゴリの商品を取得
+  useEffect(() => {
+    const fetchRelatedItems = async () => {
+      if (!item?.category) return;
+
+      setIsLoadingRelated(true);
+      try {
+        const items = await itemsApi.getByCategory(item.category, 1, 10);
+        // 現在の商品を除外
+        setRelatedItems((items || []).filter(i => i.id !== item.id).slice(0, 6));
+      } catch (err) {
+        console.error('Failed to fetch related items:', err);
+      } finally {
+        setIsLoadingRelated(false);
+      }
+    };
+
+    fetchRelatedItems();
+  }, [item?.category, item?.id]);
 
   useEffect(() => {
     const fetchLikeStatus = async () => {
@@ -164,6 +192,23 @@ export const ItemDetailPage = () => {
   const handleDMClick = () => {
     if (item) {
       navigate(`/dm/${item.uid}`, { state: { item } });
+    }
+  };
+
+  const handleSellerClick = async () => {
+    if (!item) return;
+
+    if (user?.uid === item.uid) {
+      navigate('/mypage');
+      return;
+    }
+
+    setShowSellerSheet(true);
+    try {
+      const items = await itemsApi.getByUid(item.uid);
+      setSellerItems((items || []).filter(i => i.id !== item.id));
+    } catch (err) {
+      console.error('Failed to fetch seller items:', err);
     }
   };
 
@@ -344,11 +389,12 @@ export const ItemDetailPage = () => {
       </header>
 
       <main className="detail-main">
-        {item.ifPurchased && (
-          <div className="sold-banner">この商品は売り切れです</div>
-        )}
+        <div className="detail-main-content">
+          {item.ifPurchased && (
+            <div className="sold-banner">この商品は売り切れです</div>
+          )}
 
-        <div className="image-carousel">
+          <div className="image-carousel">
           {item.image_urls && item.image_urls.length > 0 ? (
             <>
               <img
@@ -436,18 +482,23 @@ export const ItemDetailPage = () => {
           <div className="seller-card">
             <h3>出品者</h3>
             <div className="seller-info">
-              {sellerProfile?.profileImageUrl ? (
-                <img
-                  src={sellerProfile.profileImageUrl}
-                  alt={sellerProfile.nickname}
-                  className="seller-avatar"
-                />
-              ) : (
-                <div className="seller-avatar-placeholder" />
-              )}
-              <span className="seller-name">
-                {sellerProfile?.nickname || `${item.uid.slice(0, 8)}...`}
-              </span>
+              <div
+                className="seller-profile-link"
+                onClick={handleSellerClick}
+              >
+                {sellerProfile?.profileImageUrl ? (
+                  <img
+                    src={sellerProfile.profileImageUrl}
+                    alt={sellerProfile.nickname}
+                    className="seller-avatar"
+                  />
+                ) : (
+                  <div className="seller-avatar-placeholder" />
+                )}
+                <span className="seller-name">
+                  {sellerProfile?.nickname || `${item.uid.slice(0, 8)}...`}
+                </span>
+              </div>
               {!isOwnItem && !item.ifPurchased && (
                 <button onClick={handleDMClick} className="dm-button">
                   DMを送る
@@ -508,6 +559,40 @@ export const ItemDetailPage = () => {
             </div>
           )}
         </div>
+        </div>
+
+        {/* 右サイドバー: おすすめ商品 */}
+        <aside className="related-items-sidebar">
+          <h3>同じカテゴリの商品</h3>
+          {isLoadingRelated ? (
+            <p className="related-loading">読み込み中...</p>
+          ) : relatedItems.length > 0 ? (
+            <div className="related-items-list">
+              {relatedItems.map((relatedItem) => (
+                <div
+                  key={relatedItem.id}
+                  className="related-item-card"
+                  onClick={() => navigate(`/item/${relatedItem.id}`)}
+                >
+                  <div className="related-item-image">
+                    {relatedItem.image_urls && relatedItem.image_urls.length > 0 ? (
+                      <img src={getFullImageUrl(relatedItem.image_urls[0])} alt={relatedItem.title} />
+                    ) : (
+                      <div className="related-item-placeholder">No Image</div>
+                    )}
+                    {relatedItem.ifPurchased && <span className="related-sold-tag">売切</span>}
+                  </div>
+                  <div className="related-item-info">
+                    <p className="related-item-title">{relatedItem.title}</p>
+                    <p className="related-item-price">{jpyToEthDisplay(relatedItem.price)} ETH</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="related-empty">おすすめ商品はありません</p>
+          )}
+        </aside>
       </main>
 
       {/* 購入処理モーダル */}
@@ -578,6 +663,64 @@ export const ItemDetailPage = () => {
                 <button className="modal-close-btn" onClick={closePurchaseModal}>
                   閉じる
                 </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 出品者プロフィールシート */}
+      {showSellerSheet && (
+        <div className="seller-sheet-overlay" onClick={() => setShowSellerSheet(false)}>
+          <div className="seller-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="seller-sheet-handle" />
+            <div className="seller-sheet-header">
+              <div className="seller-sheet-avatar">
+                {sellerProfile?.profileImageUrl ? (
+                  <img src={sellerProfile.profileImageUrl} alt={sellerProfile.nickname} />
+                ) : (
+                  <div className="avatar-placeholder">
+                    {(sellerProfile?.nickname || '?').charAt(0)}
+                  </div>
+                )}
+              </div>
+              <div className="seller-sheet-info">
+                <h3>{sellerProfile?.nickname || `${item?.uid.slice(0, 8)}...`}</h3>
+                {sellerProfile?.bio && <p className="seller-sheet-bio">{sellerProfile.bio}</p>}
+              </div>
+            </div>
+            <div className="seller-sheet-actions">
+              {!item?.ifPurchased && (
+                <button className="seller-sheet-dm-btn" onClick={() => { setShowSellerSheet(false); handleDMClick(); }}>
+                  DMを送る
+                </button>
+              )}
+            </div>
+            {sellerItems.length > 0 && (
+              <div className="seller-sheet-items">
+                <h4>他の出品</h4>
+                <div className="seller-sheet-items-list">
+                  {sellerItems.slice(0, 4).map((sellerItem) => (
+                    <div
+                      key={sellerItem.id}
+                      className="seller-sheet-item-card"
+                      onClick={() => { setShowSellerSheet(false); navigate(`/item/${sellerItem.id}`); }}
+                    >
+                      <div className="seller-sheet-item-image">
+                        {sellerItem.image_urls && sellerItem.image_urls.length > 0 ? (
+                          <img src={getFullImageUrl(sellerItem.image_urls[0])} alt={sellerItem.title} />
+                        ) : (
+                          <div className="item-placeholder">No Image</div>
+                        )}
+                        {sellerItem.ifPurchased && <span className="sold-tag">売切</span>}
+                      </div>
+                      <div className="seller-sheet-item-info">
+                        <p className="seller-sheet-item-title">{sellerItem.title}</p>
+                        <p className="seller-sheet-item-price">{jpyToEthDisplay(sellerItem.price)} ETH</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
