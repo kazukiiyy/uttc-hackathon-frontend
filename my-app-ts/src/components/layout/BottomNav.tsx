@@ -32,11 +32,11 @@ export const BottomNavigation = () => {
         📷<br/>出品
       </button>
 
-      <button 
-        className={`nav-item ${isActive('/mypage') ? 'active' : ''}`} 
+      <button
+        className={`nav-item ${isActive('/mypage') ? 'active' : ''}`}
         onClick={() => navigate('/mypage')}
       >
-        👤<br/>設定
+        👤<br/>マイページ
       </button>
     </nav>
   );
